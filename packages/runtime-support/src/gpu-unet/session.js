@@ -143,8 +143,10 @@ export async function createGpuSession(bytes, dims, { graph, outputChannels=1, l
   const plan=planGpuGraph(dims,graph,{outputChannels,label}), adapter=await gpu?.requestAdapter({powerPreference:'high-performance'});
   if(!adapter)throw new Error('WebGPU is unavailable in this browser.');
   const largest=Math.max(...plan.slots.map(s=>s.bytes));
-  if(largest>=2**31 || largest>adapter.limits.maxStorageBufferBindingSize || largest>adapter.limits.maxBufferSize) {
-    throw new Error(`This volume exceeds the validated GPU buffer limit. Choose tiled mode (approximate), or use native ${label} for full-volume processing.`);
+  // The largest activation (a 48-channel decoder tensor at full resolution) must fit one storage
+  // buffer; Apple silicon Chrome allows 4 GiB, so a 256×256×192 T1 (2.25 GiB) runs full-volume.
+  if(largest>adapter.limits.maxStorageBufferBindingSize || largest>adapter.limits.maxBufferSize) {
+    throw new Error(`This volume needs a ${(largest/2**30).toFixed(1)} GiB GPU buffer but this device allows ${(Math.min(adapter.limits.maxStorageBufferBindingSize,adapter.limits.maxBufferSize)/2**30).toFixed(1)} GiB. Choose tiled mode (approximate), or use native ${label} for full-volume processing.`);
   }
   const timestamps=profile && adapter.features.has('timestamp-query');
   const device=await adapter.requestDevice({requiredFeatures:timestamps?['timestamp-query']:[],requiredLimits:{
