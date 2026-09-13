@@ -629,7 +629,18 @@ dialog.nd-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   .nd-imaging-status { grid-column: 1; grid-row: 4; flex-wrap: wrap; }
   .nd-imaging-status progress { width: 100%; max-width: none; order: 10; }
   .nd-viewer-toolbar { gap: var(--nd-space-xs); padding: var(--nd-space-xs) var(--nd-space-sm); }
-  .nd-viewer-panel-grid { grid-template-columns: 1fr; grid-template-rows: repeat(3, minmax(180px, 1fr)); overflow-y: auto; }
+  /* Three NiiVue panels need more height than a phone's share of 100vh, and the canvases
+     swallow touch gestures, so the page scrolls instead of the grid: square panels stacked
+     in portrait, side by side in landscape; the status bar stays pinned. */
+  .nd-imaging-workspace:has(.nd-viewer-panel-grid) { height: auto; overflow: visible; }
+  .nd-imaging-workspace:has(.nd-viewer-panel-grid) .nd-imaging-status { position: sticky; bottom: 0; }
+  .nd-viewer-canvas-wrapper:has(> .nd-viewer-panel-grid) { flex: none; height: calc(3 * min(100vw, 360px)); }
+  .nd-viewer-panel-grid { grid-template-columns: 1fr; grid-template-rows: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 780px) and (orientation: landscape) {
+  .nd-viewer-canvas-wrapper:has(> .nd-viewer-panel-grid) { height: calc(100vw / 3); }
+  .nd-viewer-panel-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: 1fr; }
 }
 
 /* --------------------------------------------------------------------------
