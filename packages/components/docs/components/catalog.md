@@ -29,7 +29,8 @@ Reusable multi-echo state and UI binding for magnitude/phase navigation.
 
 ### `StageResultList`
 
-Renders worker output stages with view and download actions.
+Renders worker output stages with view and download actions. Results with a
+boolean `visible` field use a visibility checkbox and `onVisibilityChange`.
 
 ### `LabelLegend` and `MetricsSummary`
 

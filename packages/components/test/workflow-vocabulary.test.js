@@ -6,6 +6,7 @@ import { createInfoDialog, renderCommand } from '../src/ui/renderInfoDialog.js';
 import { renderFileField, bindFileDrop } from '../src/ui/renderFileField.js';
 import { bindInfoTooltips, renderInfoIcon } from '../src/ui/bindInfoTooltips.js';
 import { renderViewerToolbar } from '../src/ui/renderViewerToolbar.js';
+import { StageResultList } from '../src/ui/StageResultList.js';
 import { readFile } from 'node:fs/promises';
 
 function dom(html = '<!doctype html><body></body>') {
@@ -126,6 +127,24 @@ test('renderViewerToolbar renders only the requested controls', () => {
   for (const id of ['windowMin', 'rangeMin', 'overlayOpacity', 'colormapSelect', 'downloadCurrentVolume', 'screenshotViewer']) {
     assert.ok(full.root.querySelector(`#${id}`), `${id} rendered by default`);
   }
+});
+
+test('StageResultList uses visibility checkboxes only for toggleable results', () => {
+  const document = dom('<!doctype html><body><div id="results"></div></body>');
+  const changes = [];
+  const results = new StageResultList({
+    element: document.getElementById('results'),
+    stageLabels: { surface: 'Left pial surface' },
+    onVisibilityChange: (stage, visible) => changes.push([stage, visible]),
+  });
+  results.render({ surface: { visible: true }, report: {} });
+
+  const checkbox = document.querySelector('input[type="checkbox"]');
+  assert.equal(checkbox.checked, true);
+  assert.equal(checkbox.getAttribute('aria-label'), 'Show Left pial surface');
+  checkbox.click();
+  assert.deepEqual(changes, [['surface', false]]);
+  assert.equal(document.querySelectorAll('.nd-view-btn').length, 1);
 });
 
 test('imaging workspace provides a reusable three-panel viewer layout', async () => {

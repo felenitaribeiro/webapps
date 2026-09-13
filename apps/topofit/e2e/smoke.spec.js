@@ -2,6 +2,7 @@
 // cross-origin isolation, worker loading, and app boot. Runs against `vite preview`
 // (see playwright.config.js) so it exercises the built, header-served output.
 import { test, expect } from "@playwright/test";
+import { writeFreeSurfer } from '../../../packages/topofit/src/results.js';
 
 function niftiFixture() {
   const buffer = Buffer.alloc(352 + 2 * 2 * 2 * 4);
@@ -19,6 +20,23 @@ function niftiFixture() {
   buffer.write('n+1\0', 344, 'ascii');
   for (let index = 0; index < 8; index += 1) buffer.writeFloatLE(index, 352 + index * 4);
   return { name: 'tiny.nii', mimeType: 'application/nifti', buffer };
+}
+
+function surfaceFixture() {
+  return Array.from(new Uint8Array(writeFreeSurfer(
+    Float32Array.from([
+      0, 0, 0,
+      1, 0, 0,
+      0, 1, 0,
+      0, 0, 1,
+    ]),
+    Int32Array.from([
+      0, 2, 1,
+      0, 1, 3,
+      0, 3, 2,
+      1, 2, 3,
+    ]),
+  )));
 }
 
 test("app boots", async ({ page }) => {
@@ -107,4 +125,47 @@ test('optional example is rejected when its checksum differs', async ({ page }) 
   await page.locator('#exampleImages > summary').click();
   await page.locator('#exampleButton').click();
   await expect(page.locator('#statusText')).toContainText('checksum did not match');
+});
+
+test('surface checkboxes show multiple meshes and expose the X-ray control', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#imageInput').setInputFiles(niftiFixture());
+  await expect(page.locator('#runButton')).toBeEnabled();
+  await page.evaluate((bytes) => {
+    class ResultWorker {
+      postMessage() {
+        queueMicrotask(() => this.onmessage?.({ data: {
+          type: 'result',
+          files: ['lh-white', 'rh-white', 'lh-registration'].map((id) => ({
+            id,
+            name: id.replace('-', '.'),
+            mediaType: 'application/vnd.freesurfer.surface',
+            bytes: Uint8Array.from(bytes).buffer,
+          })),
+          provenance: { surfaceVertices: 4 },
+          elapsedSeconds: 1,
+        } }));
+      }
+
+      terminate() {}
+    }
+    window.Worker = ResultWorker;
+  }, surfaceFixture());
+  await page.locator('#runButton').click();
+
+  const left = page.getByRole('checkbox', { name: 'Show Left white surface' });
+  const right = page.getByRole('checkbox', { name: 'Show Right white surface' });
+  await left.check();
+  await expect(left).toBeEnabled();
+  await expect(page.locator('#meshXRay')).toHaveValue('0.1');
+  await right.check();
+  await expect(right).toBeEnabled();
+  await expect(page.locator('#imageLabel')).toHaveText('LEFT WHITE SURFACE · RIGHT WHITE SURFACE');
+  await page.locator('#meshXRay').fill('0.25');
+  await expect(page.locator('#meshXRayValue')).toHaveText('25%');
+  await left.uncheck();
+  await expect(page.locator('#imageLabel')).toHaveText('RIGHT WHITE SURFACE');
+  await page.getByRole('checkbox', { name: 'Show Left registration sphere' }).check();
+  await expect(right).not.toBeChecked();
+  await expect(page.locator('#imageLabel')).toHaveText('LEFT REGISTRATION SPHERE');
 });
