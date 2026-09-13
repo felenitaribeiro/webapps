@@ -40,6 +40,7 @@ const REQUIRED_METHODS = {
   synthsr: ['10.1016/j.neuroimage.2021.118206', 'github.com/neurolabusc/py_synthsr'],
   syncro: ['10.1016/j.neuroimage.2021.118206', 'arxiv.org/abs/2506.11860', '10.1016/j.neuroimage.2022.119474', '10.1016/j.media.2007.06.004', '10.1016/j.neuroimage.2010.07.033'],
   edgereg: ['afni.nimh.nih.gov', '10.1016/j.jneumeth.2016.03.001', 'github.com/niivue/niivue'],
+  ants: ['10.1038/s41598-021-87564-6', '10.1016/j.neuroimage.2010.09.025', '10.1016/j.neuroimage.2026.122074', '10.1016/j.jneumeth.2016.03.001'],
   greedy: ['sites.google.com/view/greedyreg/about', 'github.com/pyushkevich/greedy', 'arxiv.org/abs/2506.11860', '10.1016/j.jneumeth.2016.03.001'],
 };
 
