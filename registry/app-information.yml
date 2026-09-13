@@ -782,7 +782,7 @@ apps:
 
   greedy:
     about:
-      - Greedy performs affine or affine followed by deformable MRI registration locally in the browser. Custom inputs are brain extracted before registration.
+      - Greedy performs affine or affine followed by deformable MRI registration locally in the browser. Custom inputs can be brain extracted with MindGrab before registration.
     packages:
       - { name: greedy-rs (Rust → WebAssembly), url: https://github.com/neurodesk/webapps/tree/main/exes/greedy, role: affine and stationary-velocity deformable registration }
       - { name: MindGrab (brainchop), url: https://github.com/neuroneural/brainchopC, role: brain extraction for custom inputs }
@@ -867,7 +867,7 @@ apps:
 
   ants:
     about:
-      - ANTs registers a moving image to a stationary image locally in the browser with an affine stage followed by SyN symmetric diffeomorphic registration. Custom inputs are brain extracted before registration.
+      - ANTs registers a moving image to a stationary image locally in the browser with an affine stage followed by SyN symmetric diffeomorphic registration. Custom inputs can be brain extracted with MindGrab before registration.
     packages:
       - { name: ANTs SyN (WebAssembly), url: https://github.com/ANTsX/ANTs, role: affine and diffeomorphic registration }
       - { name: MindGrab (brainchop), url: https://github.com/neuroneural/brainchopC, role: brain extraction for custom inputs }

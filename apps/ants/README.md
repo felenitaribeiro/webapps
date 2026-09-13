@@ -7,7 +7,10 @@ ANTsPy `SyN` schedule that SYNcro already ships (`packages/registration`). The
 interface is Greedy's: moving, stationary and resliced images in three linked
 NiiVue panels, dcm2niix for DICOM, MindGrab brain extraction for custom inputs.
 
-The supplied examples are already brain extracted and load on start; SyN on
+The supplied examples are already brain extracted and load on start. A custom
+input is flagged as not brain extracted, and a **Brain extract** button under
+each image runs MindGrab on demand; registration never modifies the inputs and
+a scalp-bearing scan registers with artifacts, so the technical log notes it. SyN on
 the 1 mm examples took 49 s on an Apple M4 Pro and is slower on older hardware, so
 registration starts when you press **Register images**. Outputs: the registered image, the affine matrix and the
 forward and inverse warps, in ANTs' own formats.

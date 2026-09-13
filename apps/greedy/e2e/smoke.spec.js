@@ -66,12 +66,17 @@ test("the method selector runs affine plus nonlinear registration", async ({ pag
   await expect(page.locator("#resultList")).toContainText("Registered moving image");
 });
 
-test("a custom image is marked for brain extraction", async ({ page }) => {
+test("custom images are flagged and can be brain extracted per image", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("#statusText")).toContainText("Registration complete", { timeout: 60_000 });
   await page.locator("#movingInput").setInputFiles({ name: "custom.nii.gz", mimeType: "application/gzip", buffer: fixture });
-  await expect(page.locator("#movingInfo")).toContainText("brain extraction required");
-  await expect(page.locator("#extractButton")).toBeEnabled();
+  await expect(page.locator("#movingInfo")).toContainText("not brain extracted");
+  await expect(page.locator("#movingExtractButton")).toBeEnabled();
+  await expect(page.locator("#stationaryExtractButton")).toBeDisabled();
+  await page.locator("#stationaryInput").setInputFiles({ name: "template.nii.gz", mimeType: "application/gzip", buffer: fixture });
+  await expect(page.locator("#stationaryInfo")).toContainText("not brain extracted");
+  await expect(page.locator("#stationaryExtractButton")).toBeEnabled();
+  await expect(page.locator("#runButton")).toBeEnabled();
 });
 
 test("shared app bar owns information actions and theme", async ({ page }) => {

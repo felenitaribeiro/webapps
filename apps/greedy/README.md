@@ -6,10 +6,10 @@ and resliced images visible in separate linked panels. NiiVue provides the
 viewers, dcm2niix converts DICOM inputs, MindGrab brain extracts custom images,
 and the threaded `@neurodesk/greedy` WebAssembly package performs registration.
 
-The supplied examples are already brain extracted. A custom input is marked as
-requiring extraction; the user can run the visible **Brain extract moving
-image** action, and registration automatically extracts any remaining custom
-moving or stationary input before Greedy starts.
+The supplied examples are already brain extracted. A custom input is flagged
+as not brain extracted, and a **Brain extract** button under each image runs
+MindGrab on demand. Registration itself never modifies the inputs; a scan that
+still includes scalp registers with artifacts, so the technical log notes it.
 
 ## Example data
 
