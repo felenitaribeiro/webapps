@@ -79,6 +79,8 @@ test('axis-aligned spacing follows voxel axes through orientation permutations',
 test('conform memory preflight covers every simultaneous interpolation buffer', () => {
   assert.ok(estimateConformMemoryBytes([160, 192, 192], 16 * 1024 * 1024) < MAX_CONFORM_MEMORY_BYTES);
   assert.ok(estimateConformMemoryBytes([512, 512, 512], 256 * 1024 * 1024) > MAX_CONFORM_MEMORY_BYTES);
+  const sourceVoxels = 513 * 256 * 256;
+  assert.ok(estimateConformMemoryBytes([513, 256, 256], 352 + sourceVoxels * 2) > MAX_CONFORM_MEMORY_BYTES);
 });
 
 test('FreeSurfer writer emits triangular geometry and volume metadata', () => {

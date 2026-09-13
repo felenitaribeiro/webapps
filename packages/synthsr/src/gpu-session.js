@@ -5,6 +5,15 @@ import { planGpuGraph as plan, createGpuSession as create } from '@neurodesk/run
 // for it and that entry point is consumed inside this workspace, never from npm.
 export const GPU_IMPLEMENTATION = 'synthsr-blocked-fp32-v1';
 const options = { outputChannels: 1, label: 'SynthSR' };
+const bufferOptions = {
+  maxValidatedBufferSize: 192 * 256 * 256 * 48 * Float32Array.BYTES_PER_ELEMENT,
+  bufferLimitHelp: 'Choose tiled mode (approximate), use native SynthSR, or use another device for full-volume processing.',
+};
 
 export const planGpuGraph = (dims, graph = model) => plan(dims, graph, options);
-export const createGpuSession = (bytes, dims, opts) => create(bytes, dims, { ...options, graph: model, ...opts });
+export const createGpuSession = (bytes, dims, opts) => create(bytes, dims, {
+  ...options,
+  ...bufferOptions,
+  graph: model,
+  ...opts,
+});

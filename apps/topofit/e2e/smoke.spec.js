@@ -138,7 +138,7 @@ test('surface checkboxes show multiple meshes and expose the X-ray control', asy
           type: 'result',
           files: ['lh-white', 'rh-white', 'lh-registration'].map((id) => ({
             id,
-            name: id.replace('-', '.'),
+            name: id === 'lh-registration' ? 'lh.sphere' : id.replace('-', '.'),
             mediaType: 'application/vnd.freesurfer.surface',
             bytes: Uint8Array.from(bytes).buffer,
           })),
@@ -155,9 +155,30 @@ test('surface checkboxes show multiple meshes and expose the X-ray control', asy
 
   const left = page.getByRole('checkbox', { name: 'Show Left white surface' });
   const right = page.getByRole('checkbox', { name: 'Show Right white surface' });
+  const registration = page.locator('.nd-volume-toggle').filter({ hasText: 'Left registration sphere' });
+  const canvas = page.locator('#gl1');
+  const hiddenSurface = await canvas.screenshot();
+  await expect(registration.getByRole('checkbox')).toHaveCount(0);
+  await expect(registration.getByRole('button', { name: 'View' })).toBeVisible();
   await left.check();
   await expect(left).toBeEnabled();
+  const visibleSurface = await canvas.screenshot();
+  expect(visibleSurface.equals(hiddenSurface)).toBe(false);
+  await expect(page.getByRole('button', { name: '3-Plane' })).toHaveClass(/active/);
   await expect(page.locator('#meshXRay')).toHaveValue('0.1');
+  await left.uncheck();
+  await expect(left).toBeEnabled();
+  const hiddenAgain = await canvas.screenshot();
+  expect(hiddenAgain.equals(visibleSurface)).toBe(false);
+  await expect(page.locator('#imageLabel')).toHaveText('ORIGINAL IMAGE');
+  await page.evaluate(() => {
+    const [leftSurface, rightSurface] = document.querySelectorAll('.nd-result-visibility input');
+    leftSurface.click();
+    rightSurface.click();
+  });
+  await expect(left).toBeEnabled();
+  await expect(left).toBeChecked();
+  await expect(right).not.toBeChecked();
   await right.check();
   await expect(right).toBeEnabled();
   await expect(page.locator('#imageLabel')).toHaveText('LEFT WHITE SURFACE · RIGHT WHITE SURFACE');
@@ -165,7 +186,21 @@ test('surface checkboxes show multiple meshes and expose the X-ray control', asy
   await expect(page.locator('#meshXRayValue')).toHaveText('25%');
   await left.uncheck();
   await expect(page.locator('#imageLabel')).toHaveText('RIGHT WHITE SURFACE');
-  await page.getByRole('checkbox', { name: 'Show Left registration sphere' }).check();
+  await registration.getByRole('button', { name: 'View' }).click();
+  await expect(registration.getByRole('button', { name: 'View' })).toBeEnabled();
   await expect(right).not.toBeChecked();
   await expect(page.locator('#imageLabel')).toHaveText('LEFT REGISTRATION SPHERE');
+  const registrationSurface = await canvas.screenshot();
+  await page.evaluate(() => {
+    class PendingWorker {
+      postMessage() {}
+      terminate() {}
+    }
+    window.Worker = PendingWorker;
+  });
+  await page.locator('#runButton').click();
+  await expect(page.locator('#imageLabel')).toHaveText('ORIGINAL IMAGE');
+  await expect(page.locator('#resultList .nd-volume-toggle')).toHaveCount(0);
+  expect((await canvas.screenshot()).equals(registrationSurface)).toBe(false);
+  await page.locator('#cancelButton').click();
 });

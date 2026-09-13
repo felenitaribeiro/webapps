@@ -19,6 +19,19 @@ async function expectCentered(page,locator){
  expect(Math.abs(box.x-(viewport.width-box.width)/2)).toBeLessThan(2);
  expect(Math.abs(box.y-(viewport.height-box.height)/2)).toBeLessThan(2);
 }
+test('built runtime asset URLs return executable modules and WebAssembly',async({request})=>{
+ for(const path of ['mindgrab/brainchop-mindgrab-gpu.js','mindgrab/brainchop-mindgrab-gl.js','mindgrab/brainchop-mindgrab.js','registration/syncro-registration.mjs']){
+  const response=await request.get(path);
+  expect(response.ok()).toBe(true);
+  expect(response.headers()['content-type']).toMatch(/javascript/);
+  expect(await response.text()).not.toMatch(/<!doctype html>/i);
+ }
+ for(const path of ['mindgrab/brainchop-mindgrab-gpu.wasm','mindgrab/brainchop-mindgrab-gl.wasm','mindgrab/brainchop-mindgrab.wasm','registration/syncro-registration.wasm']){
+  const response=await request.get(path);
+  expect(response.ok()).toBe(true);
+  expect([...((await response.body()).subarray(0,4))]).toEqual([0,97,115,109]);
+ }
+});
 test('geometry error reveals retained accompanying controls before inference',async({page})=>{
  const modelRequests=[];page.on('request',r=>{if(r.url().includes('.onnx'))modelRequests.push(r.url());});
  await page.goto('./');

@@ -136,18 +136,36 @@ export function elementShader(node) {
     let i=(group.x+group.y*${x}u)*256u+tid;if(i>=${size}u){return;} ${body}}`,dispatch:[x,Math.ceil(Math.ceil(size/256)/x),1]};
 }
 
-export async function createGpuSession(bytes, dims, { graph, outputChannels=1, label='U-Net', gpu=globalThis.navigator?.gpu, profile=false } = {}) {
+export function assertGpuBufferSupported(largest, limits, {
+  label = 'U-Net',
+  maxValidatedBufferSize = 2 ** 31 - 1,
+  bufferLimitHelp = `Use native ${label} or another device for full-volume processing.`,
+} = {}) {
+  if (largest > maxValidatedBufferSize) {
+    throw new Error(`This volume needs a ${(largest / 2 ** 30).toFixed(1)} GiB GPU buffer, above the validated ${(maxValidatedBufferSize / 2 ** 30).toFixed(1)} GiB limit for ${label}. ${bufferLimitHelp}`);
+  }
+  const allowed = Math.min(limits.maxStorageBufferBindingSize, limits.maxBufferSize);
+  if (largest > allowed) {
+    throw new Error(`This volume needs a ${(largest / 2 ** 30).toFixed(1)} GiB GPU buffer but this device allows ${(allowed / 2 ** 30).toFixed(1)} GiB. ${bufferLimitHelp}`);
+  }
+}
+
+export async function createGpuSession(bytes, dims, {
+  graph,
+  outputChannels = 1,
+  label = 'U-Net',
+  gpu = globalThis.navigator?.gpu,
+  profile = false,
+  maxValidatedBufferSize = 2 ** 31 - 1,
+  bufferLimitHelp,
+} = {}) {
   const raw=bytes instanceof ArrayBuffer?new Uint8Array(bytes):new Uint8Array(bytes.buffer,bytes.byteOffset,bytes.byteLength);
   const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw)),v=>v.toString(16).padStart(2,'0')).join('');
   if(raw.byteLength!==graph.bytes || hash!==graph.sha256)throw new Error(`GPU executor requires the validated ${label} model.`);
   const plan=planGpuGraph(dims,graph,{outputChannels,label}), adapter=await gpu?.requestAdapter({powerPreference:'high-performance'});
   if(!adapter)throw new Error('WebGPU is unavailable in this browser.');
   const largest=Math.max(...plan.slots.map(s=>s.bytes));
-  // The largest activation (a 48-channel decoder tensor at full resolution) must fit one storage
-  // buffer; Apple silicon Chrome allows 4 GiB, so a 256×256×192 T1 (2.25 GiB) runs full-volume.
-  if(largest>adapter.limits.maxStorageBufferBindingSize || largest>adapter.limits.maxBufferSize) {
-    throw new Error(`This volume needs a ${(largest/2**30).toFixed(1)} GiB GPU buffer but this device allows ${(Math.min(adapter.limits.maxStorageBufferBindingSize,adapter.limits.maxBufferSize)/2**30).toFixed(1)} GiB. Choose tiled mode (approximate), or use native ${label} for full-volume processing.`);
-  }
+  assertGpuBufferSupported(largest, adapter.limits, { label, maxValidatedBufferSize, bufferLimitHelp });
   const timestamps=profile && adapter.features.has('timestamp-query');
   const device=await adapter.requestDevice({requiredFeatures:timestamps?['timestamp-query']:[],requiredLimits:{
     maxBufferSize:adapter.limits.maxBufferSize,maxStorageBufferBindingSize:adapter.limits.maxStorageBufferBindingSize,

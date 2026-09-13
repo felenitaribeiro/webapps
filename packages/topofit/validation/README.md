@@ -40,4 +40,6 @@ Docker, that path is pinned to the contract's implementation instead:
 the pipeline's integer cast. On a 192×256×256 int16 T1 with a 0.9 × 0.94 × 0.94 mm grid and a
 2.7° obliquity (largest off-diagonal mapping term 0.046) all 16,777,216 voxels matched, and
 the full browser reconstruction completed in 68 s. An OpenRecon end-to-end capture for an
-oblique scan is still owed before the release gate covers this path.
+oblique scan is still owed before the release gate covers this path. The checker requires
+NumPy and SciPy, writes its large intermediate arrays into a temporary directory, and removes
+that directory after either a passing or failing comparison.

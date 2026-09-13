@@ -30,7 +30,9 @@ self.onmessage=async({data:job})=>{
   const runtime={app:'SYNcro',...browserRuntime(job.backend??'webgpu'),threads:ort.env.wasm.numThreads};
   const common={loadModel:()=>model(job.stage,job.modelBase),
    createSession:job.stage==='synthsr'
-    ? (bytes,backend,shape)=>{Object.assign(runtime,browserRuntime(backend,shape));return createBrowserSession(ort,bytes,backend,shape);}
+    ? (bytes,backend,shape)=>{Object.assign(runtime,browserRuntime(backend,shape));return createBrowserSession(ort,bytes,backend,shape,{
+      bufferLimitHelp:'Use native SynthSR or another device for full-volume processing.',
+    });}
     : bytes=>ort.InferenceSession.create(bytes,{executionProviders:['wasm'],graphOptimizationLevel:'all'}),
    Tensor:ort.Tensor,onProgress:(value,message)=>self.postMessage({type:'progress',value,message})};
   const result=job.stage==='synthsr'?await runSynthsr({...common,buffer:job.buffer,options:{ct:job.ct,backend:job.backend??'webgpu'},runtime}):await runSynthstrip({...common,volume:job.volume??readVolume(job.buffer)});

@@ -136,7 +136,7 @@ try {
         await verifyMobileImageImport(page);
         await checkLayout(page, `${app.id}/image-import/320`);
       }
-      if (app.id === 'greedy') {
+      if (await page.locator('.nd-viewer-panel-grid').count()) {
         // All three viewer panels must be square (height capped at 360px), inside the page width, and reachable by scrolling.
         for (const viewport of [{ width: 375, height: 667 }, { width: 667, height: 375 }]) {
           await page.setViewportSize(viewport);
@@ -152,7 +152,7 @@ try {
             expect(panel.right).toBeLessThanOrEqual(viewport.width + 1);
             expect(panel.bottom).toBeLessThanOrEqual(panel.page + 1);
           }
-          console.log(`PASS greedy/panels/${viewport.width}x${viewport.height}`);
+          console.log(`PASS ${app.id}/panels/${viewport.width}x${viewport.height}`);
         }
       }
       if (app.id === 'zarro') {

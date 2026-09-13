@@ -40,9 +40,10 @@ let importedImages = [];
 let timer;
 let started;
 let meshSceneReady = false;
-let meshSpace;
+let viewerBusy = false;
 const loadedMeshes = new Map();
 const visibleMeshes = new Set();
+const surfaceStages = new Set(['lh-white', 'rh-white', 'lh-pial', 'rh-pial']);
 const stageLabels = {
   qc: 'Source-grid QC overlay',
   'lh-white': 'Left white surface',
@@ -129,6 +130,12 @@ function setBusy(value) {
   if (!value) clearInterval(timer);
 }
 
+function setViewerBusy(value) {
+  viewerBusy = value;
+  for (const control of $('resultList').querySelectorAll('button, input')) control.disabled = value;
+  $('runButton').disabled = value || busy || !source;
+}
+
 async function ensureViewer() {
   if (!viewerReady) {
     viewerReady = (async () => {
@@ -149,16 +156,13 @@ async function ensureViewer() {
   return viewerReady;
 }
 
-async function resetMeshes(nv, preservedInput) {
+async function resetMeshes(nv) {
   await nv.removeAllMeshes();
   loadedMeshes.clear();
   visibleMeshes.clear();
   meshSceneReady = false;
-  meshSpace = undefined;
   xrayControl.hidden = true;
-  for (const input of $('resultList').querySelectorAll('.nd-result-visibility input')) {
-    if (input !== preservedInput) input.checked = false;
-  }
+  for (const input of $('resultList').querySelectorAll('.nd-result-visibility input')) input.checked = false;
 }
 
 async function showSource() {
@@ -172,35 +176,30 @@ async function showSource() {
 
 async function setMeshVisible(stage, visible, input) {
   const file = outputs.get(stage);
-  if (!file || !Object.hasOwn(meshColors, stage)) return;
-  input.disabled = true;
+  if (!file || !surfaceStages.has(stage) || viewerBusy) {
+    input.checked = !visible;
+    return;
+  }
+  setViewerBusy(true);
   try {
     const nv = await ensureViewer();
-    const requestedSpace = stage.includes('registration') ? 'registration' : 'anatomical';
-    if (visible && meshSceneReady && meshSpace !== requestedSpace) await resetMeshes(nv, input);
-    const firstVisible = visible && visibleMeshes.size === 0;
     if (!meshSceneReady) {
       await nv.removeAllMeshes();
-      await nv.loadVolumes(requestedSpace === 'registration' ? [] : [{ url: source, name: source.name }]);
+      await nv.loadVolumes([{ url: source, name: source.name }]);
       loadedMeshes.clear();
       visibleMeshes.clear();
       meshSceneReady = true;
-      meshSpace = requestedSpace;
     }
     if (!loadedMeshes.has(stage)) {
       const index = nv.meshes.length;
-      await nv.addMesh({ url: file, name: file.name, color: meshColors[stage], visible });
+      await nv.addMesh({ url: file, name: file.name, color: meshColors[stage] });
       loadedMeshes.set(stage, index);
     } else {
-      await nv.setMesh(loadedMeshes.get(stage), { visible });
+      await nv.setMesh(loadedMeshes.get(stage), { opacity: visible ? 1 : 0 });
     }
     if (visible) visibleMeshes.add(stage);
     else visibleMeshes.delete(stage);
     input.checked = visible;
-    if (firstVisible) {
-      nv.sliceType = SLICE_TYPE.RENDER;
-      toolbar.setActive('render');
-    }
     xrayControl.hidden = visibleMeshes.size === 0;
     $('imageLabel').textContent = visibleMeshes.size
       ? Object.keys(meshColors).filter((id) => visibleMeshes.has(id)).map((id) => stageLabels[id]).join(' · ').toUpperCase()
@@ -213,7 +212,7 @@ async function setMeshVisible(stage, visible, input) {
     $('viewerError').hidden = false;
     $('viewerError').textContent = `Visualization unavailable: ${error.message}. Downloads remain available.`;
   } finally {
-    input.disabled = false;
+    setViewerBusy(false);
   }
 }
 
@@ -227,19 +226,29 @@ async function showResult(stage) {
     info.open('Processing manifest', content, { wide: true });
     return;
   }
-  if (stage !== 'qc') return;
+  if (stage !== 'qc' && !stage.includes('registration')) return;
+  if (viewerBusy) return;
+  setViewerBusy(true);
   try {
     const nv = await ensureViewer();
     await resetMeshes(nv);
-    await nv.loadVolumes([{ url: source, name: source.name }, { url: file, name: file.name, opacity: 0.75 }]);
-    nv.sliceType = SLICE_TYPE.MULTIPLANAR;
-    $('imageLabel').textContent = 'ORIGINAL IMAGE · TOPOFIT QC';
-    toolbar.setActive('multiplanar');
+    if (stage === 'qc') {
+      await nv.loadVolumes([{ url: source, name: source.name }, { url: file, name: file.name, opacity: 0.75 }]);
+      nv.sliceType = SLICE_TYPE.MULTIPLANAR;
+      $('imageLabel').textContent = 'ORIGINAL IMAGE · TOPOFIT QC';
+      toolbar.setActive('multiplanar');
+    } else {
+      await nv.loadVolumes([]);
+      await nv.loadMeshes([{ url: file, name: file.name, color: meshColors[stage] }]);
+      $('imageLabel').textContent = stageLabels[stage].toUpperCase();
+    }
     nv.drawScene();
     $('viewerError').hidden = true;
   } catch (error) {
     $('viewerError').hidden = false;
     $('viewerError').textContent = `Visualization unavailable: ${error.message}. Downloads remain available.`;
+  } finally {
+    setViewerBusy(false);
   }
 }
 
@@ -312,8 +321,8 @@ $('exampleButton').onclick = async () => {
   }
 };
 
-$('runButton').onclick = () => {
-  if (!source || busy) return;
+$('runButton').onclick = async () => {
+  if (!source || busy || viewerBusy) return;
   outputs = new Map();
   results.render();
   setBusy(true);
@@ -322,6 +331,13 @@ $('runButton').onclick = () => {
   timer = setInterval(() => {
     $('elapsed').textContent = `${Math.round((performance.now() - started) / 1000)} s`;
   }, 1000);
+  try {
+    await showSource();
+  } catch (error) {
+    $('viewerError').hidden = false;
+    $('viewerError').textContent = `Visualization unavailable: ${error.message}. Reconstruction can continue.`;
+  }
+  if (!busy) return;
   worker = new Worker(new URL('./inference-worker.js', import.meta.url), { type: 'module' });
   const active = worker;
   worker.onmessage = async ({ data }) => {
@@ -340,7 +356,7 @@ $('runButton').onclick = () => {
       for (const output of data.files) outputs.set(output.id, new File([output.bytes], output.name, { type: output.mediaType }));
       results.render(Object.fromEntries([...outputs].map(([id]) => [
         id,
-        Object.hasOwn(meshColors, id) ? { visible: false } : {},
+        surfaceStages.has(id) ? { visible: false } : {},
       ])));
       $('outputSection').open = true;
       $('progress').value = 1;

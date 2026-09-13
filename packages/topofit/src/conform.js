@@ -236,16 +236,23 @@ function interpolateVolume(input, dims, mapping, shape, onProgress) {
   for (let z = 0; z < shape[2]; z += 1) {
     for (let y = 0; y < shape[1]; y += 1) {
       for (let x = 0; x < shape[0]; x += 1, target += 1) {
-        const coordinate = [
-          mx[0] * x + mx[1] * y + mx[2] * z + mx[3],
-          my[0] * x + my[1] * y + my[2] * z + my[3],
-          mz[0] * x + mz[1] * y + mz[2] * z + mz[3],
-        ];
-        if (coordinate.some((value, axis) => value < 0 || value > dims[axis] - 1)) continue;
-        for (let axis = 0; axis < 3; axis += 1) {
-          start[axis] = Math.floor(coordinate[axis]) - 1;
-          cubicWeights(coordinate[axis], weights[axis]);
-        }
+        const sourceX = mx[0] * x + mx[1] * y + mx[2] * z + mx[3];
+        const sourceY = my[0] * x + my[1] * y + my[2] * z + my[3];
+        const sourceZ = mz[0] * x + mz[1] * y + mz[2] * z + mz[3];
+        if (
+          sourceX < 0 ||
+          sourceY < 0 ||
+          sourceZ < 0 ||
+          sourceX > dims[0] - 1 ||
+          sourceY > dims[1] - 1 ||
+          sourceZ > dims[2] - 1
+        ) continue;
+        start[0] = Math.floor(sourceX) - 1;
+        start[1] = Math.floor(sourceY) - 1;
+        start[2] = Math.floor(sourceZ) - 1;
+        cubicWeights(sourceX, weights[0]);
+        cubicWeights(sourceY, weights[1]);
+        cubicWeights(sourceZ, weights[2]);
         let value = 0;
         for (let k = 0; k < 4; k += 1) {
           const plane = dims[1] * mirror(start[2] + k, dims[2]);

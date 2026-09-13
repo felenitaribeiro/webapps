@@ -158,17 +158,20 @@ size allowed when it does not fit. The executor no longer rejects tensors at or
 above 2 GiB outright: that cap dated from the original graph, which produced
 incorrect full-volume output above 2 GiB despite a 4 GiB adapter limit. With the
 rewritten graph a 256×256×192 int16 T1 (largest tensor 2.25 GiB, 5.36 GiB of
-reusable buffers) completed full-volume on the measured Apple GPU in 10 s and
-differed from the native Metal executable at 239 of 10,048,013 voxels by one
+reusable buffers) completed full-volume on an Apple M4 Pro in 8.77 s and
+differed from the native CPU executable at 517 of 10,048,013 voxels by one
 uint8 step with an identical affine, inside the full-volume regression gate.
+The input, model, output and reference hashes, exact timings and environment are
+recorded in [`docs/large-buffer-2026-09-13.json`](docs/large-buffer-2026-09-13.json).
 Adapters that advertise smaller limits (typical Windows and Linux) still get the
 explicit error. The CPU path has its own WASM memory ceiling. Allocation failure is
 reported; tiled mode is never silently substituted. Browser hardware determines
 practical image size and throughput.
 
-The full example's reusable GPU activation buffers total approximately 3.35 GiB,
-plus weights and output readback. Session release destroys the GPU device and its
-resources. Optional `createGpuSession(bytes, dims, {profile: true})` records per-pass
+The public FLAIR example (padded shape 192×256×160) uses approximately 3.35 GiB
+of reusable GPU activation buffers, plus weights and output readback. Session
+release destroys the GPU device and its resources. Optional
+`createGpuSession(bytes, dims, {profile: true})` records per-pass
 GPU timestamps in `session.profile` when the adapter supports timestamp queries;
 normal application runs do not enable profiling.
 
@@ -204,6 +207,9 @@ For the optional full-volume regression, set `SYNTHSR_HARDWARE_GPU=1`,
 `SYNTHSR_FULL_REFERENCE=/path/to/reference.nii.gz` alongside `SYNTHSR_ASSET_DIR`
 when running the browser suite. This requires a GPU with sufficient buffer limits
 and memory; the default CI suite uses small synthetic volumes and software WebGPU.
+Set `SYNTHSR_VALIDATION_REPORT=/path/to/report.json` to record input, model,
+output and reference hashes, exact comparison counts, timings, GPU plan and the
+browser/host environment from that run.
 
 Before the blocked-kernel optimization, on the public example FLAIR (padded shape 192×256×160), hardware WebGPU completed
 single-pass synthesis in 98 seconds and matched the native reference at all

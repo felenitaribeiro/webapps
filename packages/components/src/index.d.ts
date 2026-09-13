@@ -61,3 +61,22 @@ export function renderCommand(config: { id?: string; command: string; label?: st
 export function bindInfoTooltips(root?: ParentNode): void;
 export function renderInfoIcon(text: string, config?: { label?: string; id?: string }, doc?: Document): HTMLSpanElement;
 export function bindSectionDisclosure(section: Element, root?: ParentNode): MutationObserver;
+
+export interface StageResult {
+  description?: string;
+  visible?: boolean;
+  [key: string]: unknown;
+}
+
+export interface StageResultListOptions<Result extends StageResult = StageResult> {
+  element?: string | HTMLElement | null;
+  stageLabels?: Record<string, string>;
+  onView?(stage: string, result: Result | undefined): void;
+  onVisibilityChange?(stage: string, visible: boolean, result: Result, input: HTMLInputElement): void;
+  onDownload?(stage: string, result: Result | undefined): void;
+}
+
+export class StageResultList<Result extends StageResult = StageResult> {
+  constructor(options?: StageResultListOptions<Result>);
+  render(results?: Record<string, Result>, stageOrder?: string[]): void;
+}

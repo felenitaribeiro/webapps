@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import synthseg from '../../synthseg/src/gpu-model.json' with { type: 'json' };
 import synthsr from '../../synthsr/src/gpu-model.json' with { type: 'json' };
 import { planGpuGraph } from '../src/gpu-unet/index.js';
-import { elementShader } from '../src/gpu-unet/session.js';
+import { assertGpuBufferSupported, elementShader } from '../src/gpu-unet/session.js';
 import { conv3dShader } from '../src/gpu-unet/conv3d.js';
 
 const CLASSES = 33;
@@ -43,6 +43,33 @@ test('SynthSR still plans to a single output channel with the same node counts',
 test('the padded classifier head compiles as a blocked convolution',()=>{
   const code=conv3dShader({dims:[32,32,32],inputChannels:24,outputChannels:36,kernel:1});
   assert.match(code,/@workgroup_size/);
+});
+
+test('large GPU buffers require an explicit caller validation contract', () => {
+  const limits = { maxStorageBufferBindingSize: 4 * 2 ** 30, maxBufferSize: 4 * 2 ** 30 };
+  assert.throws(
+    () => assertGpuBufferSupported(2.25 * 2 ** 30, limits, { label: 'SynthSeg' }),
+    /above the validated 2\.0 GiB limit for SynthSeg.*native SynthSeg/s,
+  );
+  assert.doesNotThrow(() => assertGpuBufferSupported(2.25 * 2 ** 30, limits, {
+    label: 'SynthSR',
+    maxValidatedBufferSize: 2.25 * 2 ** 30,
+  }));
+  assert.throws(
+    () => assertGpuBufferSupported(2.5 * 2 ** 30, limits, {
+      label: 'SynthSR',
+      maxValidatedBufferSize: 2.25 * 2 ** 30,
+    }),
+    /above the validated 2\.3 GiB limit for SynthSR/,
+  );
+  assert.throws(
+    () => assertGpuBufferSupported(2.25 * 2 ** 30, { maxStorageBufferBindingSize: 2 ** 30, maxBufferSize: 4 * 2 ** 30 }, {
+      label: 'SynthSR',
+      maxValidatedBufferSize: 2.25 * 2 ** 30,
+      bufferLimitHelp: 'Choose tiled mode.',
+    }),
+    /device allows 1\.0 GiB.*Choose tiled mode/s,
+  );
 });
 
 // Channel-major posteriors make the readback NCDHW, so no host transpose is needed.
