@@ -20,7 +20,8 @@ immutable dataset commit and records every runtime asset's byte count and
 SHA-256.
 
 With conforming enabled, the package reproduces OpenRecon's centered 256³,
-1 mm RAS, order-3 cubic preprocessing for supported axis-aligned NIfTI inputs.
+1 mm RAS, order-3 cubic preprocessing for any NIfTI input; axis-aligned scans take a
+separable fast path, oblique scans a full 3-D evaluation of the same spline.
 ONNX Runtime WebAssembly uses one thread so repeated runs have a fixed executor
 policy. The downloaded processing manifest contains SHA-256 hashes for the
 input, conformed tensor, model inputs, assets, and outputs; elapsed time is kept

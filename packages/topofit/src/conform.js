@@ -5,22 +5,28 @@ const DEFAULT_SHAPE = [256, 256, 256];
 
 export function conformVolume(volume, options = {}) {
   const shape = options.shape || DEFAULT_SHAPE;
-  const canonical = reorientToRas(volume);
+  // Axis-aligned scans are permuted to RAS first so the resampling is separable (three 1-D
+  // passes); oblique scans keep their grid and go through the full 3-D mapping instead.
+  const canonical = reorientToRas(volume)
+    ?? { data: Float64Array.from(volume.data), dims: [...volume.dims], affine: volume.affine };
   const affine = conformedAffine(canonical.affine, canonical.dims, shape);
   const mapping = multiply(inverseAffine(canonical.affine), affine);
-  assertDiagonalMapping(mapping);
 
   let data = canonical.data;
   splineFilter(data, canonical.dims);
-  let dims = canonical.dims;
-  for (let axis = 0; axis < 3; axis += 1) {
-    const coordinates = Array.from(
-      { length: shape[axis] },
-      (_, index) => mapping[axis][axis] * index + mapping[axis][3],
-    );
-    data = interpolateAxis(data, dims, axis, coordinates);
-    dims = dims.map((size, currentAxis) => currentAxis === axis ? shape[axis] : size);
-    options.onProgress?.((axis + 1) / 3);
+  if (isDiagonal(mapping)) {
+    let dims = canonical.dims;
+    for (let axis = 0; axis < 3; axis += 1) {
+      const coordinates = Array.from(
+        { length: shape[axis] },
+        (_, index) => mapping[axis][axis] * index + mapping[axis][3],
+      );
+      data = interpolateAxis(data, dims, axis, coordinates);
+      dims = dims.map((size, currentAxis) => currentAxis === axis ? shape[axis] : size);
+      options.onProgress?.((axis + 1) / 3);
+    }
+  } else {
+    data = interpolateVolume(data, canonical.dims, mapping, shape, options.onProgress);
   }
 
   return {
@@ -43,12 +49,7 @@ function reorientToRas(volume, tolerance = 1e-5) {
     for (let row = 1; row < 3; row += 1) {
       if (Math.abs(column[row]) > Math.abs(column[worldAxis])) worldAxis = row;
     }
-    if (
-      usedWorldAxes.has(worldAxis) ||
-      Math.abs(Math.abs(column[worldAxis]) / spacing - 1) > tolerance
-    ) {
-      throw new Error('Browser conforming currently requires an axis-aligned scan. Conform oblique images to 1 mm RAS before loading.');
-    }
+    if (usedWorldAxes.has(worldAxis) || Math.abs(Math.abs(column[worldAxis]) / spacing - 1) > tolerance) return null;
     usedWorldAxes.add(worldAxis);
     inputForOutput[worldAxis] = inputAxis;
     signs[worldAxis] = Math.sign(column[worldAxis]);
@@ -102,10 +103,7 @@ function conformedAffine(affine, sourceShape, targetShape) {
   const worldCenter = affine.slice(0, 3).map((row) =>
     row[3] + row[0] * sourceCenter[0] + row[1] * sourceCenter[1] + row[2] * sourceCenter[2]
   );
-  for (let column = 0; column < 3; column += 1) {
-    const spacing = Math.hypot(affine[0][column], affine[1][column], affine[2][column]);
-    for (let row = 0; row < 3; row += 1) output[row][column] = cleanZero(affine[row][column] / spacing);
-  }
+  for (let axis = 0; axis < 3; axis += 1) output[axis][axis] = 1;
   for (let row = 0; row < 3; row += 1) {
     output[row][3] = cleanZero(
       worldCenter[row] - output[row][0] * targetCenter[0]
@@ -186,10 +184,9 @@ function interpolateAxis(input, dims, axis, coordinates) {
   return output;
 }
 
-function cubicWeights(coordinate) {
+function cubicWeights(coordinate, weights = new Float64Array(4)) {
   const x = coordinate - Math.floor(coordinate);
   const z = 1 - x;
-  const weights = new Float64Array(4);
   weights[1] = (x * x * (x - 2) * 3 + 4) / 6;
   weights[2] = (z * z * (z - 2) * 3 + 4) / 6;
   weights[0] = z * z * z / 6;
@@ -228,14 +225,48 @@ function castLikeSciPy(data, datatypeCode) {
   return output;
 }
 
-function assertDiagonalMapping(mapping, tolerance = 1e-5) {
-  for (let row = 0; row < 3; row += 1) {
-    for (let column = 0; column < 3; column += 1) {
-      if (row !== column && Math.abs(mapping[row][column]) > tolerance) {
-        throw new Error('Browser conforming currently requires an axis-aligned scan. Conform oblique images to 1 mm RAS before loading.');
+// Same cubic B-spline as interpolateAxis (mirror taps, zero outside the source grid), evaluated
+// as a 4×4×4 tensor product at each target voxel's mapped source coordinate.
+function interpolateVolume(input, dims, mapping, shape, onProgress) {
+  const output = new Float64Array(shape[0] * shape[1] * shape[2]);
+  const weights = [new Float64Array(4), new Float64Array(4), new Float64Array(4)];
+  const start = [0, 0, 0];
+  const [mx, my, mz] = mapping;
+  let target = 0;
+  for (let z = 0; z < shape[2]; z += 1) {
+    for (let y = 0; y < shape[1]; y += 1) {
+      for (let x = 0; x < shape[0]; x += 1, target += 1) {
+        const coordinate = [
+          mx[0] * x + mx[1] * y + mx[2] * z + mx[3],
+          my[0] * x + my[1] * y + my[2] * z + my[3],
+          mz[0] * x + mz[1] * y + mz[2] * z + mz[3],
+        ];
+        if (coordinate.some((value, axis) => value < 0 || value > dims[axis] - 1)) continue;
+        for (let axis = 0; axis < 3; axis += 1) {
+          start[axis] = Math.floor(coordinate[axis]) - 1;
+          cubicWeights(coordinate[axis], weights[axis]);
+        }
+        let value = 0;
+        for (let k = 0; k < 4; k += 1) {
+          const plane = dims[1] * mirror(start[2] + k, dims[2]);
+          for (let j = 0; j < 4; j += 1) {
+            const row = dims[0] * (mirror(start[1] + j, dims[1]) + plane);
+            const weight = weights[1][j] * weights[2][k];
+            for (let i = 0; i < 4; i += 1) {
+              value += input[mirror(start[0] + i, dims[0]) + row] * weights[0][i] * weight;
+            }
+          }
+        }
+        output[target] = value;
       }
     }
+    onProgress?.((z + 1) / shape[2]);
   }
+  return output;
+}
+
+function isDiagonal(mapping, tolerance = 1e-5) {
+  return mapping.slice(0, 3).every((row, r) => row.slice(0, 3).every((value, c) => r === c || Math.abs(value) <= tolerance));
 }
 
 function multiply(left, right) {
