@@ -19,7 +19,7 @@ Scientific browser assets use immutable Hugging Face revisions in `models/syncro
 
 ## Brain extraction
 
-The browser defaults to `@brainchop/mindgrab` 0.1.20260813. Its automatic backend tries WebGPU, WebGL2 and then threaded CPU; SYNcro runs it inside the existing inference worker so a synchronous WebGL2 run does not block the interface. The package's six MindGrab runtime assets (JavaScript glue plus WASM for three backends) are copied into the production build at `mindgrab/`, adjacent and unhashed as required by the package. SynthStrip remains selectable and continues to be the standalone/HPC extractor.
+The browser defaults to `@brainchop/mindgrab` 0.1.20260813. Its automatic backend tries WebGPU, WebGL2 and then threaded CPU; SYNcro runs it inside the existing inference worker so a synchronous WebGL2 run does not block the interface. The package's six MindGrab runtime assets (JavaScript glue plus WASM for three backends) and the registration WASM are staged into gitignored `public/mindgrab/` and `public/registration/` by `scripts/copy-runtime-assets.mjs` before `dev` and `build`, so they are served adjacent and unhashed as the package requires. SynthStrip remains selectable and continues to be the standalone/HPC extractor.
 
 The installed MindGrab package is 3.2 MB compressed and 4.5 MB unpacked for both models and all backends. The MindGrab-only browser runtime assets shipped by SYNcro total 2.52 MB; a selected backend loads 0.81–0.88 MB. SynthStrip's selected browser ONNX model is 10.30 MB, excluding ONNX Runtime that SYNcro already needs for SynthSR. This makes all three MindGrab backends together 4.1× smaller than the SynthStrip model; the individual CPU runtime is 12.7× smaller.
 

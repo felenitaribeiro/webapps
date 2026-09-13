@@ -9,6 +9,8 @@ dist/
 playwright-report/
 test-results/
 apps/*/public/brainchop/
+apps/syncro/public/mindgrab/
+apps/syncro/public/registration/
 exes/*/dist/
 exes/*/models/
 exes/*/target/
