@@ -631,15 +631,17 @@ dialog.nd-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   .nd-viewer-toolbar { gap: var(--nd-space-xs); padding: var(--nd-space-xs) var(--nd-space-sm); }
   /* Three NiiVue panels need more height than a phone's share of 100vh, and the canvases
      swallow touch gestures, so the page scrolls instead of the grid: square panels stacked
-     in portrait, side by side in landscape; the status bar stays pinned. */
-  .nd-imaging-workspace:has(.nd-viewer-panel-grid) { height: auto; overflow: visible; }
-  .nd-imaging-workspace:has(.nd-viewer-panel-grid) .nd-imaging-status { position: sticky; bottom: 0; }
-  .nd-viewer-canvas-wrapper:has(> .nd-viewer-panel-grid) { flex: none; height: calc(3 * min(100vw, 360px)); }
+     in portrait, side by side in landscape; the status bar stays pinned. The :has() chains
+     outrank site/app-theme.css's generic phone rows and viewer minimum heights. */
+  .nd-imaging-workspace:has(.nd-viewer-canvas-wrapper > .nd-viewer-panel-grid) { grid-template-rows: auto auto auto auto; height: auto; overflow: visible; }
+  .nd-imaging-workspace:has(.nd-viewer-canvas-wrapper > .nd-viewer-panel-grid) .nd-imaging-viewer { min-height: 0; }
+  .nd-imaging-workspace:has(.nd-viewer-canvas-wrapper > .nd-viewer-panel-grid) .nd-imaging-status { position: sticky; bottom: 0; }
+  .nd-imaging-viewer:has(> .nd-viewer-canvas-wrapper > .nd-viewer-panel-grid) .nd-viewer-canvas-wrapper { flex: none; min-height: 0; height: calc(3 * min(100vw, 360px)); }
   .nd-viewer-panel-grid { grid-template-columns: 1fr; grid-template-rows: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 780px) and (orientation: landscape) {
-  .nd-viewer-canvas-wrapper:has(> .nd-viewer-panel-grid) { height: calc(100vw / 3); }
+  .nd-imaging-viewer:has(> .nd-viewer-canvas-wrapper > .nd-viewer-panel-grid) .nd-viewer-canvas-wrapper { height: calc(100vw / 3); }
   .nd-viewer-panel-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: 1fr; }
 }
 

@@ -29,3 +29,15 @@ python packages/topofit/validation/compare.py "$topofit_work/reference-controlle
 The comparison requires identical topology and finite output, then measures corresponding anatomical-vertex distance, registration-sphere angle and radius, exact sparse-label Dice, and symmetric QC-label coverage within one source voxel. It requires the input, inference, alignment-input, model-input, asset-set, and output hashes in the processing manifest to equal fixed values for the selected mode. Each `--repeat` directory must contain byte-identical outputs and a byte-identical manifest. Exact Dice is reported but is not the QC gate because subvoxel surface differences move points across rounding boundaries. Both comparison modes enforce the same release thresholds. These are engineering regression limits, not clinical validation. One healthy T1 scan does not establish performance across scanners, pathologies, contrasts, or browsers.
 
 The checked-in end-to-end report passes: its conformed 256³ tensor is byte-identical to OpenRecon, mean corresponding anatomical surface distance is 0.046–0.068 mm, p95 distance is 0.098–0.164 mm, mean registration error is 0.028–0.038 degrees, and one-voxel QC coverage is at least 0.9996. Two independent production-browser runs produced byte-identical surfaces, QC output, and processing manifests. The controlled report records the same remaining ONNX-versus-PyTorch numerical scale.
+
+## Oblique inputs
+
+The browser conform originally refused oblique scans. It now evaluates the same order-3
+B-spline through the full voxel mapping. Because the OpenRecon container cannot run without
+Docker, that path is pinned to the contract's implementation instead:
+`scipy-conform-check.py input.nii.gz` conforms the scan in Node and with
+`scipy.ndimage.affine_transform(order=3, mode='constant')` and counts differing voxels after
+the pipeline's integer cast. On a 192×256×256 int16 T1 with a 0.9 × 0.94 × 0.94 mm grid and a
+2.7° obliquity (largest off-diagonal mapping term 0.046) all 16,777,216 voxels matched, and
+the full browser reconstruction completed in 68 s. An OpenRecon end-to-end capture for an
+oblique scan is still owed before the release gate covers this path.

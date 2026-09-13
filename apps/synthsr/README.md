@@ -152,10 +152,17 @@ the complete pipeline against TensorFlow fixtures. The optional full-example
 regression below exercises the largest activation buffers on hardware.
 
 Full-volume memory remains substantial. The largest decoder tensor has 48
-float32 channels after the concat-convolution rewrite; the app checks the GPU's
-maximum buffer and binding sizes and conservatively rejects tensors at or above
-2 GiB. The original graph produced incorrect full-volume output above this size
-despite a 4 GiB adapter limit. The CPU path has its own WASM memory ceiling. Allocation failure is
+float32 channels after the concat-convolution rewrite; the app checks it against
+the GPU's maximum buffer and binding sizes and reports the size needed and the
+size allowed when it does not fit. The executor no longer rejects tensors at or
+above 2 GiB outright: that cap dated from the original graph, which produced
+incorrect full-volume output above 2 GiB despite a 4 GiB adapter limit. With the
+rewritten graph a 256×256×192 int16 T1 (largest tensor 2.25 GiB, 5.36 GiB of
+reusable buffers) completed full-volume on the measured Apple GPU in 10 s and
+differed from the native Metal executable at 239 of 10,048,013 voxels by one
+uint8 step with an identical affine, inside the full-volume regression gate.
+Adapters that advertise smaller limits (typical Windows and Linux) still get the
+explicit error. The CPU path has its own WASM memory ceiling. Allocation failure is
 reported; tiled mode is never silently substituted. Browser hardware determines
 practical image size and throughput.
 

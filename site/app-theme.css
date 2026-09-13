@@ -949,18 +949,6 @@
     overflow-wrap: anywhere;
   }
 
-  /* Multi-panel viewers (.nd-viewer-panel-grid) size to their panels, which
-     imaging-workspace.css lays out as squares, instead of the 60svh row that
-     would clip the second and third panel. */
-  [data-neurodesk-app] .nd-imaging-workspace:has(.nd-viewer-panel-grid) {
-    grid-template-rows: auto auto auto auto;
-  }
-
-  [data-neurodesk-app] .nd-imaging-viewer:has(.nd-viewer-panel-grid),
-  [data-neurodesk-app] .nd-viewer-canvas-wrapper:has(> .nd-viewer-panel-grid) {
-    min-height: 0;
-  }
-
   [data-neurodesk-app] :is(.control-section, .start-hero > *, .start-step > *) {
     min-width: 0;
   }
