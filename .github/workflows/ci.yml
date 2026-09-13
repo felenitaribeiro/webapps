@@ -168,9 +168,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
-        if: matrix.app == 'greedy'
+        if: matrix.rust_wasm
       - name: Install Greedy WebAssembly toolchain
-        if: matrix.app == 'greedy'
+        if: matrix.rust_wasm
         run: |
           rustup toolchain install nightly-2025-11-15 --component rust-src --target wasm32-unknown-unknown
           cargo install wasm-pack --version 0.13.1 --locked

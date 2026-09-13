@@ -110,8 +110,9 @@ Pass the pipeline's session arguments through unchanged so GPU allocation uses t
 prepared/padded dimensions. Supply the app's own ONNX Runtime instance and WASM URLs;
 use `browserRuntime` in provenance to distinguish the custom GPU executor from ORT.
 The optional `gpuOptions.bufferLimitHelp` lets a caller describe only recovery
-paths its interface actually offers. SynthSR raises its single-buffer ceiling
-from 2 GiB to the validated 2.25 GiB; other users of the shared executor keep
-the 2 GiB ceiling unless they explicitly provide their own validated maximum.
+paths its interface actually offers. SynthSR has no fixed single-buffer ceiling:
+it attempts the allocation when the adapter's `maxBufferSize` and
+`maxStorageBufferBindingSize` permit it. Other users of the shared executor keep
+the conservative 2 GiB ceiling unless they explicitly provide their own policy.
 The GPU graph index and kernels ship inside this npm package; no additional model
 weights are required. Native Node/HPC CPU and CUDA execution still uses `./node`.

@@ -46,6 +46,7 @@ export declare class NiimathBase {
     init(): Promise<boolean>;
     setOutputDataType(type: DataType): void;
     image(file: File): ImageProcessor;
+    dispose(): void;
 }
 interface ImageProcessorConfig {
     worker: Worker | null;
@@ -71,6 +72,7 @@ declare class ImageProcessor {
     allineate(base: File, opts?: (string | number)[]): this;
     resliceNN(ref: File): this;
     mulImage(img: File): this;
+    maskImage(img: File): this;
     private _generateMethods;
     run(outName?: string): Promise<Blob>;
 }
@@ -81,6 +83,7 @@ interface FileOperandMethods {
     allineate(base: File, opts?: (string | number)[]): this;
     resliceNN(ref: File): this;
     mulImage(img: File): this;
+    maskImage(img: File): this;
 }
 interface ImageProcessor extends ImageProcessorMethods, FileOperandMethods {
 }

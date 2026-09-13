@@ -1,7 +1,8 @@
 # Neurodesk webapp scientific assets
 
-Large browser-inference assets for the composite Neurodesk webapps site are stored
-in the Hugging Face dataset `sbollmann/neurodesk-webapps-assets`, not in Git.
+Large browser-inference assets and tutorial data for the composite Neurodesk
+webapps site are stored in the Hugging Face datasets
+`sbollmann/neurodesk-webapps-assets` and `neurodeskorg/webapps`, not in Git.
 
 The JSON manifests in this directory are the source of truth for filenames, byte
 sizes, SHA-256 checksums, source provenance, licences, and preprocessing contracts.
@@ -18,6 +19,9 @@ Current folders:
 - `synthseg/`: SynthSeg 2.0 ONNX re-export of the FreeSurfer 8.1.0 checkpoint
   plus validation inputs and goldens (`neurodeskorg/webapps`), see
   `synthseg.manifest.json`.
+- `syncro/tutorials/`: seven deidentified inputs for SYNcro's four documented
+  walkthroughs (`neurodeskorg/webapps`), see
+  `syncro-tutorials.manifest.json` and `syncro-tutorials.README.md`.
 
 Application and model licences are independent. `NOASSERTION` in a manifest means
 the upstream project has not yet supplied machine-readable redistribution terms.

@@ -13,10 +13,12 @@ try {
  await page.route('**/synthsr-v2.onnx',route=>route.fulfill({path:cache+'/276151128c666f81eba80a6afb7f307aa3c7d58825748029ba67cf170f1460a3/synthsr.onnx'}));
  await page.locator('#input').setInputFiles(work+'/sub-01_T1w.nii.gz');
  await expect(page.locator('#runButton')).toBeEnabled();
- await page.locator('#additionalSection > summary').click();
- await page.locator('#additional').setInputFiles([work+'/binary.nii.gz',work+'/labels.nii.gz']);
- await page.locator('#type-0').selectOption('binary');await page.locator('#type-1').selectOption('labels');
- await page.locator('#additionalSection > summary').click();
+ await page.locator('#lesion').setInputFiles(work+'/binary.nii.gz');
+ await expect(page.locator('#lesionInfo')).toBeVisible();
+ await page.locator('#settingsSection > summary').click();
+ await page.locator('#brainExtractor').selectOption('synthstrip');
+ await page.locator('#normalization').selectOption('ants');
+ await page.locator('#settingsSection > summary').click();
  await page.screenshot({path:out+'/desktop-input.png',fullPage:true});
  const start=Date.now();await page.locator('#runButton').click();
  let previous='';
@@ -30,13 +32,14 @@ try {
  }
  await expect(page.locator('#results')).toHaveAttribute('open','');
  await expect(page.locator('#viewerError')).toBeHidden();
- await page.locator('#opacity').evaluate(el=>{el.value='0.75';el.dispatchEvent(new Event('input',{bubbles:true}));});
+ await page.locator('#viewSelect').selectOption('output:wsub-01_T1w.nii.gz');
+ await page.locator('#opacity').evaluate(el=>{el.value='75';el.dispatchEvent(new Event('input',{bubbles:true}));});
  await page.waitForTimeout(2000);
  await expect(page.locator('#viewerError')).toBeHidden();
  await page.screenshot({path:out+'/desktop-result.png',fullPage:true});
  const download=page.waitForEvent('download');await page.locator('#download').click();
  await (await download).saveAs(out+'/syncro-results.zip');
- await writeFile(out+'/browser.json',JSON.stringify({seconds:(Date.now()-start)/1000,browser:browser.version(),errors,annotations:'Synthetic fixtures on the real anatomical grid'},null,2));
+ await writeFile(out+'/browser.json',JSON.stringify({seconds:(Date.now()-start)/1000,browser:browser.version(),errors,annotation:'Synthetic binary lesion on the real anatomical grid',brainExtractor:'synthstrip',normalization:'ants'},null,2));
  if(errors.length)throw new Error(errors.join('\n'));
  console.log('Browser result downloaded',out);
 }finally{await browser.close();}

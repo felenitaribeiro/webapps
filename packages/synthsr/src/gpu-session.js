@@ -6,7 +6,7 @@ import { planGpuGraph as plan, createGpuSession as create } from '@neurodesk/run
 export const GPU_IMPLEMENTATION = 'synthsr-blocked-fp32-v1';
 const options = { outputChannels: 1, label: 'SynthSR' };
 const bufferOptions = {
-  maxValidatedBufferSize: 192 * 256 * 256 * 48 * Float32Array.BYTES_PER_ELEMENT,
+  maxValidatedBufferSize: Number.POSITIVE_INFINITY,
   bufferLimitHelp: 'Choose tiled mode (approximate), use native SynthSR, or use another device for full-volume processing.',
 };
 

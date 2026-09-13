@@ -45,30 +45,30 @@ test('the padded classifier head compiles as a blocked convolution',()=>{
   assert.match(code,/@workgroup_size/);
 });
 
-test('large GPU buffers require an explicit caller validation contract', () => {
+test('caller ceilings are optional and adapter buffer limits always apply', () => {
   const limits = { maxStorageBufferBindingSize: 4 * 2 ** 30, maxBufferSize: 4 * 2 ** 30 };
   assert.throws(
     () => assertGpuBufferSupported(2.25 * 2 ** 30, limits, { label: 'SynthSeg' }),
     /above the validated 2\.0 GiB limit for SynthSeg.*native SynthSeg/s,
   );
-  assert.doesNotThrow(() => assertGpuBufferSupported(2.25 * 2 ** 30, limits, {
+  assert.doesNotThrow(() => assertGpuBufferSupported(2.8 * 2 ** 30, limits, {
     label: 'SynthSR',
-    maxValidatedBufferSize: 2.25 * 2 ** 30,
+    maxValidatedBufferSize: Number.POSITIVE_INFINITY,
   }));
   assert.throws(
     () => assertGpuBufferSupported(2.5 * 2 ** 30, limits, {
-      label: 'SynthSR',
+      label: 'Limited U-Net',
       maxValidatedBufferSize: 2.25 * 2 ** 30,
     }),
-    /above the validated 2\.3 GiB limit for SynthSR/,
+    /above the validated 2\.3 GiB limit for Limited U-Net/,
   );
   assert.throws(
-    () => assertGpuBufferSupported(2.25 * 2 ** 30, { maxStorageBufferBindingSize: 2 ** 30, maxBufferSize: 4 * 2 ** 30 }, {
+    () => assertGpuBufferSupported(2.8 * 2 ** 30, { maxStorageBufferBindingSize: 2.5 * 2 ** 30, maxBufferSize: 4 * 2 ** 30 }, {
       label: 'SynthSR',
-      maxValidatedBufferSize: 2.25 * 2 ** 30,
+      maxValidatedBufferSize: Number.POSITIVE_INFINITY,
       bufferLimitHelp: 'Choose tiled mode.',
     }),
-    /device allows 1\.0 GiB.*Choose tiled mode/s,
+    /device allows 2\.5 GiB.*Choose tiled mode/s,
   );
 });
 

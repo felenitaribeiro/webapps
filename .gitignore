@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+.pnpm-store/
 
 # Build output
 dist/
@@ -9,6 +10,8 @@ dist/
 playwright-report/
 test-results/
 apps/*/public/brainchop/
+apps/*/public/greedy-wasm/
+apps/*/public/cfireants/
 apps/syncro/public/mindgrab/
 apps/*/public/registration/
 exes/*/dist/
@@ -29,6 +32,7 @@ exes/*/target/
 # WASM files (downloaded by per-app setup.sh)
 apps/*/web/wasm/
 packages/greedy/wasm/
+packages/greedy/.wasm-build.lock/
 
 # Vendored shared components (generated from packages/components by each app's vendor script)
 apps/*/web/vendor/

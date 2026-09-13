@@ -9,33 +9,44 @@
 <body>
 <header id="controls">
   <details class="nd-sidebar-section" id="inputSection" open>
-    <summary class="nd-section-title">Anatomical image</summary>
+    <summary class="nd-section-title">Inputs</summary>
     <div class="nd-section-content">
-      <label class="nd-file" id="dropZone">
-        <input id="input" type="file" data-neurodesk-input="image" multiple aria-label="Choose an anatomical NIfTI image or DICOM series">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <span>Drop NIfTI or DICOM files or folder</span>
-      </label>
-      <p id="fileInfo" class="nd-file-info" aria-live="polite" hidden></p>
-      <button id="example" class="nd-btn nd-btn-secondary nd-btn-sm" type="button">Load OpenNeuro example</button>
       <div class="nd-field">
-        <label for="modality">Input modality</label>
-        <select id="modality"><option value="mri">MRI</option><option value="ct">CT · Hounsfield units</option></select>
+        <label for="tutorial">Tutorial dataset</label>
+        <select id="tutorial">
+          <option value="">Load a tutorial…</option>
+          <option value="trace-t1">TRACE lesion + T1w primary</option>
+          <option value="trace-only">TRACE primary + lesion</option>
+          <option value="t1-only">T1w primary + lesion</option>
+          <option value="ct-only">CT primary + lesion</option>
+        </select>
+        <p class="nd-hint">Tutorial images retain their source terms. The CT example is non-commercial; redistribution terms for the T1w lesion annotation are not yet confirmed.</p>
       </div>
+      <div class="nd-field">
+        <label>Primary scan <span aria-hidden="true">*</span></label>
+        <div id="primaryField"></div>
+        <p id="primaryInfo" class="nd-file-info" aria-live="polite" hidden></p>
+      </div>
+      <div class="nd-field">
+        <label>Lesion map <span class="nd-hint">optional</span></label>
+        <div id="lesionField"></div>
+        <p id="lesionInfo" class="nd-file-info" aria-live="polite" hidden></p>
+        <button id="clearLesion" class="nd-btn nd-btn-secondary nd-btn-sm" type="button" hidden>Remove lesion map</button>
+      </div>
+      <div class="nd-field">
+        <label>Pathological modality <span class="nd-hint">optional</span></label>
+        <div id="pathologicalField"></div>
+        <p id="pathologicalInfo" class="nd-file-info" aria-live="polite" hidden></p>
+        <button id="clearPathological" class="nd-btn nd-btn-secondary nd-btn-sm" type="button" hidden>Remove pathological modality</button>
+        <p class="nd-hint">Use this only when the lesion was drawn on a different scan. The lesion map must share this scan's grid.</p>
+      </div>
+      <div class="nd-field">
+        <label for="viewSelect">Image shown</label>
+        <select id="viewSelect" disabled></select>
+      </div>
+      <label class="nd-check"><input id="ct" type="checkbox"> Primary is CT (Hounsfield units)</label>
+      <label class="nd-check"><input id="keepSynth" type="checkbox"> Keep native-space synthetic T1</label>
       <button id="runButton" class="nd-btn nd-btn-primary" type="button" disabled>Normalize to MNI</button>
-    </div>
-  </details>
-
-  <details class="nd-sidebar-section" id="additionalSection">
-    <summary class="nd-section-title">Accompanying images</summary>
-    <div class="nd-section-content">
-      <p class="nd-hint">Lesion maps or other images already aligned to the anatomical scan. They are warped with the same transform.</p>
-      <label class="nd-file">
-        <input id="additional" type="file" data-neurodesk-input="image" multiple aria-label="Choose accompanying NIfTI or DICOM images">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <span>Drop aligned images or lesion maps</span>
-      </label>
-      <div id="additionalList"></div>
     </div>
   </details>
 
@@ -49,7 +60,11 @@
       <div class="nd-field">
         <label for="brainExtractor">Brain extraction</label>
         <select id="brainExtractor"><option value="mindgrab">MindGrab · automatic</option><option value="synthstrip">SynthStrip · CPU WebAssembly</option></select>
-        <p class="nd-hint">MindGrab tries WebGPU, WebGL2, then threaded CPU. Registration uses CPU WebAssembly.</p>
+      </div>
+      <div class="nd-field">
+        <label for="normalization">Normalization</label>
+        <select id="normalization"><option value="greedy">Greedy · default</option><option value="ants">ANTs SyN</option></select>
+        <p class="nd-hint">MindGrab tries WebGPU, WebGL2, then threaded CPU. Greedy and ANTs use threaded CPU WebAssembly.</p>
       </div>
     </div>
   </details>
@@ -57,9 +72,9 @@
   <details class="nd-sidebar-section" id="results">
     <summary class="nd-section-title">Results</summary>
     <div class="nd-section-content">
-      <div id="resultList"></div>
+      <button id="downloadSelected" class="nd-btn nd-btn-secondary nd-btn-sm" type="button" disabled>Download shown image</button>
       <button id="download" class="nd-btn nd-btn-secondary nd-btn-sm" type="button" disabled>Download all results (.zip)</button>
-      <p class="nd-hint">Includes warped images, synthetic images, masks, forward and inverse transforms, and processing details.</p>
+      <p class="nd-hint">Output names match command-line SYNcro. Processing details are included in the archive.</p>
     </div>
   </details>
 
@@ -79,20 +94,20 @@
 
 <footer id="status">
   <span class="nd-status-label">Status</span>
-  <span id="statusText" class="nd-status-text" role="status" aria-live="polite">Ready · choose an anatomical image</span>
+  <span id="statusText" class="nd-status-text" role="status" aria-live="polite">Ready · choose a primary scan</span>
   <span id="elapsed" class="nd-status-elapsed"></span>
   <progress id="progress" value="0" max="1" aria-label="Normalization progress"></progress>
   <button id="cancel" class="nd-btn-cancel" type="button" title="Cancel processing" aria-label="Cancel processing" hidden>×</button>
 </footer>
 
 <template id="aboutContent">
-  <p>SynthSR → brain extraction (MindGrab by default, or SynthStrip) → ANTs SyN normalization to the MNI152 1 mm brain template. The transformation is applied to the original acquired image.</p>
-  <p>Synthetic contrast may alter lesions. Review the original image, brain mask and alignment before using results. This experimental implementation is for research.</p>
+  <p>SynthSR → brain extraction (MindGrab by default, or SynthStrip) → Greedy normalization (or ANTs SyN) to the MNI152 1 mm brain template → niimath masking. A pathological modality is first aligned to the primary scan.</p>
+  <p>Synthetic contrast may alter lesions. Review the original image, extracted synthetic brain and alignment before using results. This experimental implementation is for research.</p>
   <p>Code: Apache-2.0 with upstream attribution. MindGrab is MIT licensed. The MNI template has separate <a href="data/FSL-LICENSE.txt">FSL terms for non-commercial use</a>.</p>
 </template>
 
 <template id="privacyContent">
-  <p>Your images are processed locally in this browser. SynthSR, optional SynthStrip and the MNI template are downloaded from Hugging Face; MindGrab ships with the app. The optional example is downloaded from OpenNeuro. Model bytes may be cached on this device. Images are not uploaded to a processing service.</p>
+  <p>Your images are processed locally in this browser. Models, the MNI template and optional tutorial images are downloaded from Hugging Face; MindGrab ships with the app. Model bytes may be cached on this device. Your own images are not uploaded to a processing service.</p>
 </template>
 
 <template id="standaloneContent">

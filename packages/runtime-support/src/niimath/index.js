@@ -910,6 +910,10 @@ var NiimathBase = class {
       outputDataType: this.outputDataType
     });
   }
+  dispose() {
+    this.worker?.terminate();
+    this.worker = null;
+  }
 };
 var ImageProcessor = class {
   constructor({ worker, file, operators, outputDataType }) {
@@ -972,6 +976,10 @@ var ImageProcessor = class {
   // only handles a scalar token; this stages a File operand into MEMFS.
   mulImage(img) {
     return this._addFileCommand("-mul", [img]);
+  }
+  // Mask the current image with another image: -mas <img>.
+  maskImage(img) {
+    return this._addFileCommand("-mas", [img]);
   }
   _generateMethods() {
     Object.keys(this.operators).forEach((methodName) => {

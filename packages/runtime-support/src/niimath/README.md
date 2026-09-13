@@ -25,6 +25,8 @@ parity evidence for that release, switch it to npm and delete this directory.
 
 - **Source repo:** `rordenlab/niimath` (local: `/Users/chris/src/niimath`)
 - **Built from commit:** `cf2ef5bc46114c1b8350cda8663ab92ffbd6d7c5`
+- **Local wrapper patch:** `webapps-wrapper.patch` adds worker disposal and a
+  staged-file `-mas` helper without changing the pinned WASM binary.
 - **License:** BSD-2-Clause. The GPL `spm_coreg`/`spm_deface` module is **not** built or
   shipped (no `index-gpl`/`niimath-gpl`/`worker-gpl`/`./gpl`).
 
@@ -32,12 +34,14 @@ parity evidence for that release, switch it to npm and delete this directory.
 
 ```sh
 cd /Users/chris/src/niimath/js
+git apply <webapps>/packages/runtime-support/src/niimath/webapps-wrapper.patch
 bun run makeWasm                                                 # BSD wasm → src/niimath.{js,wasm}
 bun run scripts/pre-build.ts -i src/niimath.js -o src/niimath.js
 bun run build                                                    # esbuild → dist/
 # then copy the BSD dist files into packages/runtime-support/src/niimath:
 cp dist/{index.js,index.d.ts,core.d.ts,types.d.ts,worker.js,worker.d.ts,\
 workerImpl.d.ts,niimath.js,niimath.wasm,niimathOperators.json} <webapps>/packages/runtime-support/src/niimath/
+git apply -R <webapps>/packages/runtime-support/src/niimath/webapps-wrapper.patch
 ```
 
 A JS-wrapper-only change (e.g. `js/src/core.ts`) needs just `bun run build` — the `.wasm`
