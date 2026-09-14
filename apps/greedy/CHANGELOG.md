@@ -4,9 +4,14 @@
 
 ### Patch Changes
 
-- Allow the isolated Apple signing job to look up draft releases before notarization.
+- Write native release checksums with LF line endings on every platform so Linux and macOS uploaders can verify Windows archives.
   - @neurodesk/greedy@0.2.20260914
 
+
+### Patch Changes
+
+- Allow the isolated Apple signing job to look up draft releases before notarization.
+  - @neurodesk/greedy@0.2.20260914
 
 ### Minor Changes
 

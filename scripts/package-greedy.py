@@ -97,7 +97,7 @@ def package(target):
         native.mkdir(parents=True, exist_ok=True)
         shutil.copy2(extracted / name / executable, native / executable)
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-    Path(f'{archive}.sha256').write_text(f'{digest}  {archive.name}\n')
+    Path(f'{archive}.sha256').write_text(f'{digest}  {archive.name}\n', encoding='utf-8', newline='\n')
     Path(f'{archive}.validation.txt').write_text(report)
     print(archive)
 
