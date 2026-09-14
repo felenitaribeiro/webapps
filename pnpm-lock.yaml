@@ -42,6 +42,34 @@ importers:
         specifier: ^2.8.1
         version: 2.9.0
 
+  apps/ants:
+    dependencies:
+      '@brainchop/mindgrab':
+        specifier: 0.1.20260813
+        version: 0.1.20260813
+      '@neurodesk/registration':
+        specifier: workspace:*
+        version: link:../../packages/registration
+      '@neurodesk/runtime-support':
+        specifier: workspace:*
+        version: link:../../packages/runtime-support
+      '@neurodesk/webapp-components':
+        specifier: workspace:*
+        version: link:../../packages/components
+      '@niivue/niivue':
+        specifier: 1.0.0-rc.13
+        version: 1.0.0-rc.13
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.44.0
+        version: 1.61.1
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.5(jiti@2.7.0)
+      vite:
+        specifier: ^5.0.0
+        version: 5.4.21(@types/node@24.13.3)
+
   apps/brain2print:
     dependencies:
       '@brainchop/mindgrab':
@@ -366,6 +394,34 @@ importers:
         specifier: ^5.0.0
         version: 5.4.21(@types/node@24.13.3)
 
+  apps/fireants:
+    dependencies:
+      '@brainchop/mindgrab':
+        specifier: 0.1.20260813
+        version: 0.1.20260813
+      '@fireants/fireants':
+        specifier: 0.1.20260913
+        version: 0.1.20260913
+      '@neurodesk/runtime-support':
+        specifier: workspace:*
+        version: link:../../packages/runtime-support
+      '@neurodesk/webapp-components':
+        specifier: workspace:*
+        version: link:../../packages/components
+      '@niivue/niivue':
+        specifier: 1.0.0-rc.13
+        version: 1.0.0-rc.13
+    devDependencies:
+      '@playwright/test':
+        specifier: ^1.44.0
+        version: 1.61.1
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.5(jiti@2.7.0)
+      vite:
+        specifier: ^5.0.0
+        version: 5.4.21(@types/node@24.13.3)
+
   apps/greedy:
     dependencies:
       '@brainchop/mindgrab':
@@ -485,6 +541,9 @@ importers:
       '@brainchop/mindgrab':
         specifier: 0.1.20260813
         version: 0.1.20260813
+      '@neurodesk/greedy':
+        specifier: workspace:*
+        version: link:../../packages/greedy
       '@neurodesk/registration':
         specifier: workspace:*
         version: link:../../packages/registration
@@ -578,6 +637,9 @@ importers:
       '@neurodesk/webapp-components':
         specifier: workspace:*
         version: link:../../packages/components
+      '@niivue/niimath':
+        specifier: 1.4.20260909
+        version: 1.4.20260909
       '@niivue/niivue':
         specifier: 1.0.0-rc.11
         version: 1.0.0-rc.11(patch_hash=f9748394ca2414090ff8580b3514639f284a8be82cc3b0152e59c96d4a48b3b6)
@@ -1803,6 +1865,9 @@ packages:
   '@fastify/busboy@2.1.1':
     resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
     engines: {node: '>=14'}
+
+  '@fireants/fireants@0.1.20260913':
+    resolution: {integrity: sha512-zojSdaD3UYXEcbkKzso/y2oJ+qO2lAASIGW52OZhiOEFL7VHADFxHMNgHGXR4+pl1L76id53XnzC++8Gbc1Kjw==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -6632,6 +6697,8 @@ snapshots:
       levn: 0.4.1
 
   '@fastify/busboy@2.1.1': {}
+
+  '@fireants/fireants@0.1.20260913': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

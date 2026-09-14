@@ -60,7 +60,9 @@ test('all six surfaces load, anatomical views remain multiplanar, and repeated p
   await deliverSurfaces(page);
   await expect(page.locator('.nd-console-message').filter({ hasText: 'Loading topofit-t1w-1mm-white-order-6.onnx' })).toHaveCount(1);
   for (const label of ['Left registration sphere', 'Right registration sphere', 'Left white surface', 'Left pial surface', 'Right white surface', 'Right pial surface']) {
-    await page.locator('.nd-volume-toggle').filter({ hasText: label }).getByRole('button', { name: 'View', exact: true }).click();
+    const row = page.locator('.nd-volume-toggle').filter({ hasText: label });
+    if (label.includes('sphere')) await row.getByRole('button', { name: 'View', exact: true }).click();
+    else await row.getByRole('checkbox').check();
     await expect(page.locator('#imageLabel')).toContainText(label.includes('sphere') ? 'REGISTRATION' : label.includes('white') ? 'WHITE' : 'PIAL');
     await expect(page.locator('#viewerError')).toBeHidden();
     await expect(page.locator('.nd-view-tab.active')).toHaveText(label.includes('sphere') ? '3D' : '3-Plane');
@@ -133,7 +135,7 @@ test('surface-analysis controls preserve edited settings when collapsed and pass
   await page.locator('#surfaceAnalysisSettings > summary').click();
   await expect(page.locator('#patchRadius')).toHaveValue('8');
   await page.locator('#runButton').click();
-  expect(await page.evaluate(() => window.lastTopofitJob.patches)).toEqual({ count: 2, radius: 8, hemisphere: 'lh', maxRms: 0.5, minAreaFraction: 0.25 });
+  await expect.poll(() => page.evaluate(() => window.lastTopofitJob.patches)).toEqual({ count: 2, radius: 8, hemisphere: 'lh', maxRms: 0.5, minAreaFraction: 0.25 });
   expect(await page.evaluate(() => window.lastTopofitJob.estimateNormals)).toBe(true);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: testInfo.outputPath('analysis-phone.png'), fullPage: true });
@@ -207,7 +209,9 @@ test('real reconstructed cortex displays patch QC, selected patches and registra
   await expect(page.locator('.nd-view-tab.active')).toHaveText('3-Plane');
   await page.screenshot({ path: testInfo.outputPath('real-selected-patch.png') });
   for (const label of ['Left registration sphere', 'Right registration sphere', 'Left white surface', 'Right pial surface']) {
-    await page.locator('.nd-volume-toggle').filter({ hasText: label }).getByRole('button', { name: 'View', exact: true }).click();
+    const row = page.locator('.nd-volume-toggle').filter({ hasText: label });
+    if (label.includes('sphere')) await row.getByRole('button', { name: 'View', exact: true }).click();
+    else await row.getByRole('checkbox').check();
     await expect(page.locator('#imageLabel')).toContainText(label.includes('sphere') ? 'REGISTRATION' : label.includes('white') ? 'WHITE' : 'PIAL');
     await expect(page.locator('#viewerError')).toBeHidden();
   }

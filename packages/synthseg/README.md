@@ -48,7 +48,10 @@ The wasm ABI is plain C exports (`seg_new`, `seg_error_*`, `seg_input`, `seg_fli
 
 The 33 posterior channels of a 1 mm head are ~0.9 GB, and the default mode holds
 two sets while averaging, so the module is linked with `--max-memory=4 GiB` and
-needs a 64-bit browser. `fast` mode halves the peak.
+needs a 64-bit browser. `fast` mode halves the peak. The WebGPU executor retains
+SynthSeg's validated 2 GiB single-buffer ceiling even when an adapter advertises
+a larger limit; scans above it should use the native SynthSeg executable or a
+smaller input until a separate large-buffer parity run extends that contract.
 
 ## Measured (Apple M4 Pro, Chromium via Metal, 192×224×160)
 

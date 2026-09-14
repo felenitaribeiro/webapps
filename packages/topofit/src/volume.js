@@ -68,7 +68,7 @@ export function estimateConformMemoryBytes(dims, retainedBytes = 0) {
     2 * source + afterX,
     source + afterX + afterY,
     source + afterY + target,
-    source + target + target / 2,
+    3 * source + target + target / 2,
   );
   return retainedBytes + simultaneousFloat64 * Float64Array.BYTES_PER_ELEMENT;
 }

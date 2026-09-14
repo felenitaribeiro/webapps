@@ -4,15 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build && node ../../scripts/theme-app-dist.mjs --app syncro",
+    "dev": "pnpm --filter @neurodesk/greedy build:wasm && node scripts/copy-runtime-assets.mjs && vite",
+    "build": "pnpm --filter @neurodesk/greedy build:wasm && node scripts/copy-runtime-assets.mjs && vite build && node ../../scripts/theme-app-dist.mjs --app syncro",
     "preview": "vite preview",
-    "test": "node --test test/*.test.js",
+    "test": "pnpm --filter @neurodesk/greedy build:wasm && node --test test/*.test.js",
     "test:e2e": "playwright test",
     "lint": "node --check src/main.js && node --check src/worker.js"
   },
   "dependencies": {
     "@brainchop/mindgrab": "0.1.20260813",
+    "@neurodesk/greedy": "workspace:*",
     "@neurodesk/registration": "workspace:*",
     "@neurodesk/runtime-support": "workspace:*",
     "@neurodesk/synthsr": "workspace:*",

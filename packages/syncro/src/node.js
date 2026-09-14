@@ -1,7 +1,8 @@
 import {readFile,writeFile,mkdir,rename,stat} from 'node:fs/promises';
-import {resolve,join,dirname} from 'node:path';
+import {resolve,join,dirname,basename} from 'node:path';
 import {homedir,availableParallelism} from 'node:os';
 import {createHash,randomUUID} from 'node:crypto';
+import {gzipSync,gunzipSync} from 'node:zlib';
 import {runSyncro,asBuffer} from './pipeline.js';
 import {assets} from './assets.js';
 import {runSynthsr,readVolume,writeVolume} from '../../synthsr/src/index.js';
@@ -84,17 +85,29 @@ export async function normalize({input,output,additional=[],ct=false,threads=Num
     for(const [file,data]of Object.entries(files)){await writeFile(join(checkpoint,file),data);checksums[file]=hash(data);}
     await writeFile(record,JSON.stringify({files:checksums,provenance:result.provenance}));return result;
   }
+  const unsupported=additional.filter(item=>item.type!=='binary');
+  if(unsupported.length)throw new Error('The Node package accepts one --lesion input. Use the native SYNcro command or webapp for pathological modalities.');
+  if(additional.length>1)throw new Error('SYNcro accepts at most one lesion map.');
+  const lesion=additional[0]?{name:basename(additional[0].path),buffer:asBuffer(await readFile(additional[0].path))}:null;
+  const represent=async({buffer,compressed})=>{
+    const bytes=Buffer.from(buffer);
+    const gzipped=bytes[0]===0x1f&&bytes[1]===0x8b;
+    if(compressed)return new Uint8Array(gzipped?bytes:gzipSync(bytes));
+    return new Uint8Array(gzipped?gunzipSync(bytes):bytes);
+  };
   let engine;
-  const result=await runSyncro({input:asBuffer(inputBytes),template:asBuffer(template),ct,onProgress,
-    additional:await Promise.all(additional.map(async item=>({...item,buffer:asBuffer(await readFile(item.path)),name:item.path}))),
+  const result=await runSyncro({input:asBuffer(inputBytes),inputName:basename(input),lesion,template:asBuffer(template),ct,onProgress,
+    brainExtractor:'synthstrip',normalization:'ants',represent,
     synthesize:args=>cached('synthsr',()=>runSynthsr({buffer:args.buffer,options:{ct,backend:'cpu'},loadModel:async()=>models.synthsr,createSession,Tensor:ort.Tensor,onProgress:args.onProgress,runtime:{threads,onnxRuntime:ort.env.versions.node}}),
       r=>({'synthsr.nii':new Uint8Array(r.buffer)}),(f,provenance)=>({buffer:asBuffer(f['synthsr.nii']),provenance})),
     extractBrain:args=>cached('synthstrip',()=>runSynthstrip({...args,loadModel:async()=>models.synthstrip,createSession,Tensor:ort.Tensor}),
       r=>({'brain.nii':new Uint8Array(writeVolume(r.brain)),'mask.nii':new Uint8Array(writeVolume(r.mask))}),
       (f,provenance)=>({brain:readVolume(asBuffer(f['brain.nii'])),mask:{...readVolume(asBuffer(f['mask.nii'])),data:Uint8Array.from(readVolume(asBuffer(f['mask.nii'])).data)},provenance})),
     registration:{
-      async register(args){const {default:createModule}=await import(registrationURL);engine=await createRegistration({createModule,wasmBinary:wasm,onLog:m=>onProgress('registration',null,m)});return engine.register(args);},
-      apply:args=>engine.apply(args),release:reg=>engine.release(reg),
+      provenance:{engine:'ANTs 2.6.2',method:'SyN',seed:42,precision:'float',threads:1},
+      async register(args){const {default:createModule}=await import(registrationURL);engine=await createRegistration({createModule,wasmBinary:wasm,onLog:m=>onProgress('registration',null,m)});const registered=engine.register(args);return {...registered,warped:await represent({buffer:registered.warped,compressed:args.compressed})};},
+      async apply(args){return represent({buffer:engine.apply(args),compressed:args.compressed});},
+      release:reg=>engine.release(reg),
     },
   });
   result.provenance.input=resolve(input);result.provenance.inputHash=hash(inputBytes);result.provenance.templateHash=hash(template);result.provenance.registrationWasmHash=hash(wasm);

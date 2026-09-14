@@ -1,6 +1,7 @@
 use greedy_rs_core::{
-    AffineMetric, Transform, decode_image, decode_vector_field, encode_image, encode_vector_field,
-    read_matrix, register_affine, register_nmi_svf, reslice,
+    AffineMetric, Interpolation, Transform, decode_image, decode_vector_field, encode_image,
+    encode_vector_field, read_matrix, register_affine, register_nmi_svf, reslice,
+    reslice_with_background,
 };
 use wasm_bindgen::prelude::*;
 
@@ -114,6 +115,77 @@ pub fn reslice_warp_affine(
         &moving,
         &[Transform::Warp(warp), Transform::Affine(matrix)],
         None,
+    )
+    .map_err(wasm_error)?;
+    encode_image(&output, false).map_err(wasm_error)
+}
+
+/// Reslice through the standard warp/affine pair and an optional preceding
+/// moving-to-anatomical affine. This matches SYNcro's single-pass transform
+/// chain for a pathological scan and its lesion mask.
+#[wasm_bindgen]
+pub fn reslice_warp_affine_options(
+    fixed: &[u8],
+    moving: &[u8],
+    warp: &[u8],
+    matrix: &str,
+    preceding_matrix: Option<String>,
+    nearest: bool,
+    background: f32,
+) -> Result<Vec<u8>, JsValue> {
+    let fixed = decode_image(fixed).map_err(wasm_error)?;
+    let moving = decode_image(moving).map_err(wasm_error)?;
+    let warp = decode_vector_field(warp).map_err(wasm_error)?;
+    let mut chain = vec![
+        Transform::Warp(warp),
+        Transform::Affine(read_matrix(matrix).map_err(wasm_error)?),
+    ];
+    if let Some(value) = preceding_matrix {
+        chain.push(Transform::Affine(read_matrix(&value).map_err(wasm_error)?));
+    }
+    let interpolation = if nearest {
+        Interpolation::Nearest
+    } else {
+        Interpolation::Linear
+    };
+    let output = reslice_with_background(
+        &fixed.grid,
+        &moving,
+        &chain,
+        None,
+        interpolation,
+        background,
+    )
+    .map_err(wasm_error)?;
+    encode_image(&output, false).map_err(wasm_error)
+}
+
+/// Reslice through one affine with an explicit interpolation and background.
+/// The ANTs adapter uses this to place a pathological image in the primary
+/// image grid before applying its nonlinear transform.
+#[wasm_bindgen]
+pub fn reslice_affine_options(
+    fixed: &[u8],
+    moving: &[u8],
+    matrix: &str,
+    nearest: bool,
+    background: f32,
+) -> Result<Vec<u8>, JsValue> {
+    let fixed = decode_image(fixed).map_err(wasm_error)?;
+    let moving = decode_image(moving).map_err(wasm_error)?;
+    let chain = [Transform::Affine(read_matrix(matrix).map_err(wasm_error)?)];
+    let interpolation = if nearest {
+        Interpolation::Nearest
+    } else {
+        Interpolation::Linear
+    };
+    let output = reslice_with_background(
+        &fixed.grid,
+        &moving,
+        &chain,
+        None,
+        interpolation,
+        background,
     )
     .map_err(wasm_error)?;
     encode_image(&output, false).map_err(wasm_error)

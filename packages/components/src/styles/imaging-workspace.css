@@ -630,7 +630,20 @@ dialog.nd-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   .nd-imaging-status { grid-column: 1; grid-row: 4; flex-wrap: wrap; }
   .nd-imaging-status progress { width: 100%; max-width: none; order: 10; }
   .nd-viewer-toolbar { gap: var(--nd-space-xs); padding: var(--nd-space-xs) var(--nd-space-sm); }
-  .nd-viewer-panel-grid { grid-template-columns: 1fr; grid-template-rows: repeat(3, minmax(180px, 1fr)); overflow-y: auto; }
+  /* Three NiiVue panels need more height than a phone's share of 100vh, and the canvases
+     swallow touch gestures, so the page scrolls instead of the grid: square panels stacked
+     in portrait, side by side in landscape; the status bar stays pinned. The :has() chains
+     outrank site/app-theme.css's generic phone rows and viewer minimum heights. */
+  .nd-imaging-workspace:has(.nd-viewer-canvas-wrapper > .nd-viewer-panel-grid) { grid-template-rows: auto auto auto auto; height: auto; overflow: visible; }
+  .nd-imaging-workspace:has(.nd-viewer-canvas-wrapper > .nd-viewer-panel-grid) .nd-imaging-viewer { min-height: 0; }
+  .nd-imaging-workspace:has(.nd-viewer-canvas-wrapper > .nd-viewer-panel-grid) .nd-imaging-status { position: sticky; bottom: 0; }
+  .nd-imaging-viewer:has(> .nd-viewer-canvas-wrapper > .nd-viewer-panel-grid) .nd-viewer-canvas-wrapper { flex: none; min-height: 0; height: calc(3 * min(100vw, 360px)); }
+  .nd-viewer-panel-grid { grid-template-columns: 1fr; grid-template-rows: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 780px) and (orientation: landscape) {
+  .nd-imaging-viewer:has(> .nd-viewer-canvas-wrapper > .nd-viewer-panel-grid) .nd-viewer-canvas-wrapper { height: calc(100vw / 3); }
+  .nd-viewer-panel-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: 1fr; }
 }
 
 /* --------------------------------------------------------------------------
@@ -708,10 +721,12 @@ dialog.nd-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 }
 
 /* --------------------------------------------------------------------------
-   12. Result rows (StageResultList / QSMbly stage list): View · label · Download
+   12. Result rows (StageResultList / QSMbly stage list): View/visibility · label · Download
    -------------------------------------------------------------------------- */
 .nd-volume-toggle { display: flex; align-items: center; gap: 4px; min-width: 0; }
 .nd-volume-toggle .nd-stage-label { flex: 1; min-width: 0; color: var(--nd-color-text); font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nd-result-visibility { display: inline-flex; align-items: center; justify-content: center; min-width: 52px; min-height: 28px; cursor: pointer; flex-shrink: 0; }
+.nd-result-visibility input { width: 16px; height: 16px; margin: 0; cursor: pointer; accent-color: var(--nd-color-primary); }
 .nd-imaging-controls .nd-section-content .nd-volume-toggle :is(.nd-view-btn, .nd-download-btn),
 .nd-volume-toggle :is(.nd-view-btn, .nd-download-btn) { width: auto; min-height: 28px; margin: 0; padding: var(--nd-space-xs) var(--nd-space-sm); color: var(--nd-color-text); background: var(--nd-color-surface-elevated); border: 1px solid var(--nd-color-border); border-radius: var(--nd-radius-sm); font: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer; flex-shrink: 0; }
 .nd-volume-toggle .nd-view-btn { min-width: 52px; }
@@ -720,4 +735,4 @@ dialog.nd-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 .nd-volume-toggle .nd-view-btn.active:hover:not(:disabled) { background: var(--nd-color-primary-hover); border-color: var(--nd-color-primary-hover); }
 .nd-volume-toggle :is(.nd-view-btn, .nd-download-btn):disabled { opacity: 0.45; cursor: not-allowed; }
 .nd-empty-state { margin: 0; color: var(--nd-color-text-dim); font-size: 0.75rem; }
-@media (pointer: coarse) { .nd-volume-toggle :is(.nd-view-btn, .nd-download-btn) { min-height: 44px; } }
+@media (pointer: coarse) { .nd-volume-toggle :is(.nd-view-btn, .nd-download-btn, .nd-result-visibility) { min-height: 44px; } }

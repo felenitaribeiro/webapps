@@ -71,3 +71,31 @@ test('conform matches nibabel orientation permutations and flips', () => {
     'f31080e375885ee239f8997a74ccf96b78ba8f88a1bf079505d2b6c7784ed595',
   );
 });
+
+test('conform resamples an oblique scan onto a centred RAS grid (cubic reproduces a linear field)', () => {
+  // 10° rotation about z, anisotropic spacing: the mapping is not diagonal, so the 3-D path runs.
+  const [c, s] = [Math.cos(Math.PI / 18), Math.sin(Math.PI / 18)];
+  const dims = [32, 32, 32];
+  const affine = [
+    [1.2 * c, -1.5 * s, 0, -20],
+    [1.2 * s, 1.5 * c, 0, -25],
+    [0, 0, 1.1, -18],
+    [0, 0, 0, 1],
+  ];
+  const field = ([x, y, z]) => 0.5 + x + 2 * y + 3 * z;
+  const data = new Float32Array(dims[0] * dims[1] * dims[2]);
+  for (let k = 0; k < dims[2]; k += 1) for (let j = 0; j < dims[1]; j += 1) for (let i = 0; i < dims[0]; i += 1) {
+    const world = affine.slice(0, 3).map((row) => row[0] * i + row[1] * j + row[2] * k + row[3]);
+    data[i + dims[0] * (j + dims[1] * k)] = field(world);
+  }
+  const actual = conformVolume({ data, dims, affine, datatypeCode: 16 }, { shape: [5, 5, 5] });
+
+  const sourceCentre = affine.slice(0, 3).map((row) => row[0] * 15 + row[1] * 15 + row[2] * 15 + row[3]);
+  assert.deepEqual(actual.affine.map((row) => row.slice(0, 3)), [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]]);
+  for (let axis = 0; axis < 3; axis += 1) assert.ok(Math.abs(actual.affine[axis][3] + 2 - sourceCentre[axis]) < 1e-9);
+  // Far from the source edges the prefilter's mirror boundary has decayed, so the spline is exact.
+  for (let k = 0; k < 5; k += 1) for (let j = 0; j < 5; j += 1) for (let i = 0; i < 5; i += 1) {
+    const world = actual.affine.slice(0, 3).map((row) => row[0] * i + row[1] * j + row[2] * k + row[3]);
+    assert.ok(Math.abs(actual.data[i + 5 * (j + 5 * k)] - field(world)) < 1e-4, `voxel ${i},${j},${k}`);
+  }
+});

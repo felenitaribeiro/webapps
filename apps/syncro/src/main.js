@@ -1,11 +1,12 @@
-import NiiVue, { MULTIPLANAR_TYPE, SLICE_TYPE, SHOW_RENDER } from '@niivue/niivue';
-import { mountImagingWorkspace } from '@neurodesk/webapp-components/core/mount-imaging-workspace';
-import { bindFileDrop, bindInfoTooltips, createInfoDialog, renderConsole, renderViewerToolbar } from '@neurodesk/webapp-components/ui';
+import NiiVue, { MULTIPLANAR_TYPE, SHOW_RENDER, SLICE_TYPE } from '@niivue/niivue';
 import { createElement } from '@neurodesk/webapp-components/core';
-import { readVolume } from '@neurodesk/synthsr';
+import { mountImagingWorkspace } from '@neurodesk/webapp-components/core/mount-imaging-workspace';
+import { bindInfoTooltips, createInfoDialog, renderConsole, renderFileField, renderViewerToolbar } from '@neurodesk/webapp-components/ui';
 import { readImageFiles } from '@neurodesk/runtime-support/dcm2niix-client';
-import { zipSync } from 'fflate';
+import { readVolume } from '@neurodesk/synthsr';
+import { zip } from 'fflate';
 import { templateAsset } from '../../../packages/syncro/src/assets.js';
+import { fetchTutorial } from '../../../packages/syncro/src/tutorials.js';
 import { configureNativeDownloads } from './native-release.js';
 import './styles.css';
 
@@ -20,25 +21,41 @@ mountImagingWorkspace({
 });
 
 const $ = (id) => document.getElementById(id);
-configureNativeDownloads($('standaloneContent').content);
 const base = new URL(import.meta.env.BASE_URL, location.href);
 const viewerRegion = $('viewer');
+configureNativeDownloads($('standaloneContent').content);
 
-// ---- Shared chrome: layout tabs + overlay opacity, technical log, information dialog ----
+let viewer;
 const layouts = {
-  multiplanar: () => { viewer.sliceType = SLICE_TYPE.MULTIPLANAR; viewer.multiplanarType = MULTIPLANAR_TYPE.GRID; viewer.showRender = SHOW_RENDER.ALWAYS; },
-  axial: () => { viewer.sliceType = SLICE_TYPE.AXIAL; },
-  coronal: () => { viewer.sliceType = SLICE_TYPE.CORONAL; },
-  sagittal: () => { viewer.sliceType = SLICE_TYPE.SAGITTAL; },
-  render: () => { viewer.sliceType = SLICE_TYPE.RENDER; },
+  multiplanar() {
+    viewer.sliceType = SLICE_TYPE.MULTIPLANAR;
+    viewer.multiplanarType = MULTIPLANAR_TYPE.GRID;
+    viewer.showRender = SHOW_RENDER.ALWAYS;
+  },
+  axial() {
+    viewer.sliceType = SLICE_TYPE.AXIAL;
+  },
+  coronal() {
+    viewer.sliceType = SLICE_TYPE.CORONAL;
+  },
+  sagittal() {
+    viewer.sliceType = SLICE_TYPE.SAGITTAL;
+  },
+  render() {
+    viewer.sliceType = SLICE_TYPE.RENDER;
+  },
 };
 const opacityControl = createElement('label', { className: 'nd-opacity-control', id: 'opacityControl', hidden: true }, [
-  'Overlay',
-  createElement('input', { id: 'opacity', type: 'range', min: 0, max: 100, step: 5, value: 50, disabled: true, 'aria-label': 'Overlay opacity' }),
+  'Lesion',
+  createElement('input', { id: 'opacity', type: 'range', min: 0, max: 100, step: 5, value: 50, disabled: true, 'aria-label': 'Lesion opacity' }),
   createElement('span', { id: 'opacityValue', text: '50%' }),
 ]);
 const toolbar = renderViewerToolbar({
-  window: false, overlay: false, colormap: false, download: false, screenshot: false,
+  window: false,
+  overlay: false,
+  colormap: false,
+  download: false,
+  screenshot: false,
   actions: [opacityControl],
   views: [
     { id: 'multiplanar', label: '3-Plane', active: true },
@@ -46,7 +63,15 @@ const toolbar = renderViewerToolbar({
     { id: 'coronal', label: 'Coronal' },
     { id: 'sagittal', label: 'Sagittal' },
     { id: 'render', label: '3D' },
-  ].map((view) => ({ ...view, onClick: () => { if (!viewer) return; layouts[view.id](); viewer.drawScene(); toolbar.setActive(view.id); } })),
+  ].map((view) => ({
+    ...view,
+    onClick() {
+      if (!viewer) return;
+      layouts[view.id]();
+      viewer.drawScene();
+      toolbar.setActive(view.id);
+    },
+  })),
 });
 viewerRegion.prepend(toolbar.root);
 const technicalLog = renderConsole({ id: 'technicalLog', outputId: 'log', copyId: 'copyLog', clearId: 'clearLog' });
@@ -73,29 +98,58 @@ info.body.addEventListener('click', async (event) => {
     const live = info.body.querySelector('#copyStatus');
     if (live) live.textContent = 'Copied to clipboard';
   } catch {
-    status('Could not copy automatically. Select the text and copy it manually.');
+    setStatus('Could not copy automatically. Select the text and copy it manually.');
   }
-  setTimeout(() => { button.textContent = 'Copy'; }, 1200);
+  setTimeout(() => {
+    button.textContent = 'Copy';
+  }, 1200);
 });
 
-// ---- Workflow state ----
-let source, worker, viewer, viewerReady, busy = false, outputs, additional = [], timer, start, exampleAbort, importAbort, displayed = 'original';
-const status = (message, error = false) => {
+const fileFields = {
+  primary: renderFileField({ id: 'input', rootId: 'dropZone', text: 'Drop primary NIfTI or DICOM files', label: 'Choose the required primary scan' }),
+  lesion: renderFileField({ id: 'lesion', rootId: 'lesionDropZone', text: 'Drop a binary lesion map', label: 'Choose an optional binary lesion map' }),
+  pathological: renderFileField({ id: 'pathological', rootId: 'pathologicalDropZone', text: 'Drop pathological modality files', label: 'Choose an optional pathological modality scan' }),
+};
+$('primaryField').append(fileFields.primary.root);
+$('lesionField').append(fileFields.lesion.root);
+$('pathologicalField').append(fileFields.pathological.root);
+
+let inputs = { primary: null, lesion: null, pathological: null };
+let outputs = null;
+let viewItems = new Map();
+let worker;
+let viewerReady;
+let busy = false;
+let timer;
+let started;
+let importAbort;
+let tutorialAbort;
+let viewRevision = 0;
+let viewTask = Promise.resolve();
+let zipTask;
+
+function setStatus(message, error = false) {
   $('statusText').textContent = message;
   $('statusText').classList.toggle('error', error);
   technicalLog.log(message, error ? 'error' : 'info');
-};
-const log = (message) => technicalLog.log(message);
+}
 
 function setBusy(value) {
   busy = value;
-  for (const id of ['input', 'example', 'additional', 'modality', 'synthsrBackend', 'brainExtractor']) $(id).disabled = value;
-  for (const select of $('additionalList').querySelectorAll('select')) select.disabled = value;
-  $('runButton').disabled = value || !source;
+  for (const field of Object.values(fileFields)) field.input.disabled = value;
+  for (const id of ['tutorial', 'ct', 'keepSynth', 'synthsrBackend', 'brainExtractor', 'normalization']) $(id).disabled = value;
+  $('clearLesion').disabled = value;
+  $('clearPathological').disabled = value;
+  $('runButton').disabled = value || !inputs.primary;
   $('cancel').hidden = !value;
   $('download').disabled = value || !outputs;
-  for (const button of $('resultList').querySelectorAll('button')) button.disabled = value;
-  if (!value) { clearInterval(timer); worker?.terminate(); worker = null; }
+  $('viewSelect').disabled = value || viewItems.size === 0;
+  updateDownloadSelected();
+  if (!value) {
+    clearInterval(timer);
+    worker?.terminate();
+    worker = null;
+  }
 }
 
 async function getViewer() {
@@ -111,30 +165,114 @@ async function getViewer() {
   return viewerReady;
 }
 
-async function show(file, overlay = false) {
-  $('empty').hidden = true;
-  $('viewLabel').textContent = overlay ? `MNI template + ${file.name}` : file.name;
-  try {
-    const nv = await getViewer();
-    await nv.loadVolumes(overlay
-      ? [{ url: templateAsset.url, name: 'MNI template' }, { url: file, name: file.name, opacity: Number($('opacity').value) / 100 }]
-      : [{ url: file, name: file.name }]);
-    $('viewerError').hidden = true;
-  } catch (error) {
-    $('viewerError').hidden = false;
-    $('viewerError').textContent = `Viewer unavailable: ${error.message}`;
-  }
+async function show(item) {
+  const revision = ++viewRevision;
+  const display = async () => {
+    if (revision !== viewRevision) return;
+    if (!item) {
+      $('empty').hidden = false;
+      $('viewLabel').textContent = '';
+      $('opacityControl').hidden = true;
+      $('opacity').disabled = true;
+      $('viewerError').hidden = true;
+      if (viewer) await viewer.loadVolumes([]);
+      return;
+    }
+    const file = item.file || new File([outputs[item.outputName]], item.outputName);
+    const lesion = item.lesion || (item.lesionOutputName ? new File([outputs[item.lesionOutputName]], item.lesionOutputName) : null);
+    $('empty').hidden = true;
+    $('viewLabel').textContent = lesion ? `${file.name} + ${lesion.name}` : file.name;
+    $('opacityControl').hidden = !lesion;
+    $('opacity').disabled = !lesion;
+    try {
+      const nv = await getViewer();
+      if (revision !== viewRevision) return;
+      const volumes = [{ url: file, name: file.name }];
+      if (lesion) {
+        volumes.push({
+          url: lesion,
+          name: lesion.name,
+          colormap: 'red',
+          opacity: Number($('opacity').value) / 100,
+        });
+      }
+      await nv.loadVolumes(volumes);
+      if (revision === viewRevision) $('viewerError').hidden = true;
+    } catch (error) {
+      if (revision !== viewRevision) return;
+      $('viewerError').hidden = false;
+      $('viewerError').textContent = `Viewer unavailable: ${error.message}`;
+    }
+  };
+  viewTask = viewTask.then(display, display);
+  return viewTask;
 }
 
-// ---- Results list (View / Download per output) ----
-const viewLabels = {
-  original: 'Original acquired image',
-  'synthetic-t1.nii': 'Synthetic T1',
-  'synthetic-brain.nii': 'Synthetic brain',
-  'brain-mask.nii': 'Brain mask',
-  'warped-synthetic-brain.nii.gz': 'Warped synthetic brain',
-  'warped-original.nii.gz': 'Warped acquired image',
-};
+function niftiParts(name) {
+  const match = name.match(/^(.*?)(\.nii(?:\.gz)?)$/i);
+  return match ? { stem: match[1], extension: match[2].toLowerCase() } : null;
+}
+
+function prefixed(prefix, name) {
+  const parts = niftiParts(name);
+  return parts ? `${prefix}${parts.stem}${parts.extension}` : '';
+}
+
+function outputLabel(name) {
+  if (name === prefixed('w', inputs.primary.name)) return 'Normalized primary scan';
+  if (name === prefixed('wb', inputs.primary.name)) return 'Normalized brain-extracted primary scan';
+  if (name === prefixed('wbt1', inputs.primary.name)) return 'Normalized brain-extracted synthetic T1';
+  if (name === prefixed('t1', inputs.primary.name)) return 'Native-space synthetic T1';
+  if (inputs.pathological && name === prefixed('w', inputs.pathological.name)) return 'Normalized pathological modality';
+  return name;
+}
+
+function rebuildViewItems(preferred) {
+  const selected = preferred || $('viewSelect').value;
+  const items = new Map();
+  if (inputs.primary) {
+    items.set('input:primary', {
+      label: 'Input · primary scan',
+      file: inputs.primary,
+      lesion: inputs.pathological ? null : inputs.lesion,
+    });
+  }
+  if (inputs.pathological) {
+    items.set('input:pathological', {
+      label: 'Input · pathological modality',
+      file: inputs.pathological,
+      lesion: inputs.lesion,
+    });
+  }
+  if (outputs) {
+    const normalizedLesionName = inputs.lesion && outputs[prefixed('w', inputs.lesion.name)]
+      ? prefixed('w', inputs.lesion.name)
+      : null;
+    for (const name of Object.keys(outputs)) {
+      if (!/\.nii(?:\.gz)?$/i.test(name) || name === normalizedLesionName) continue;
+      const nativeSynthetic = name === prefixed('t1', inputs.primary.name);
+      items.set(`output:${name}`, {
+        label: `Output · ${outputLabel(name)}`,
+        lesion: nativeSynthetic ? (inputs.pathological ? null : inputs.lesion) : null,
+        lesionOutputName: nativeSynthetic ? null : normalizedLesionName,
+        outputName: name,
+      });
+    }
+  }
+  viewItems = items;
+  $('viewSelect').replaceChildren(...Array.from(items, ([value, item]) => new Option(item.label, value)));
+  $('viewSelect').disabled = items.size === 0 || busy;
+  const next = items.has(selected) ? selected : items.keys().next().value;
+  if (next) $('viewSelect').value = next;
+  updateDownloadSelected();
+  void show(items.get(next));
+}
+
+function updateDownloadSelected() {
+  const item = viewItems.get($('viewSelect').value);
+  $('downloadSelected').disabled = busy || !item?.outputName;
+}
+
 function download(bytes, name, type = 'application/octet-stream') {
   const url = URL.createObjectURL(new Blob([bytes], { type }));
   const anchor = document.createElement('a');
@@ -143,168 +281,219 @@ function download(bytes, name, type = 'application/octet-stream') {
   anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-function renderResults() {
-  const names = ['original', ...Object.keys(outputs || {}).filter((name) => /\.nii(\.gz)?$/.test(name) && !name.includes('Warp'))];
-  $('resultList').replaceChildren(...names.map((name) => createElement('div', { className: 'nd-volume-toggle', dataset: { result: name } }, [
-    createElement('button', { type: 'button', className: `nd-view-btn${name === displayed ? ' active' : ''}`, text: 'View', disabled: !source, onclick: () => viewResult(name) }),
-    createElement('span', { className: 'nd-stage-label', text: viewLabels[name] || name }),
-    name === 'original' ? null : createElement('button', { type: 'button', className: 'nd-download-btn', text: 'Download', onclick: () => download(outputs[name], name) }),
-  ])));
-}
-function updateOpacityControl(name) {
-  const overlay = name.startsWith('warped-');
-  $('opacityControl').hidden = !overlay;
-  $('opacity').disabled = !overlay;
-}
-function viewResult(name) {
-  displayed = name;
-  updateOpacityControl(name);
-  for (const row of $('resultList').querySelectorAll('.nd-volume-toggle')) row.querySelector('.nd-view-btn').classList.toggle('active', row.dataset.result === name);
-  if (name === 'original') void show(source);
-  else if (outputs?.[name]) void show(new File([outputs[name]], name), name.startsWith('warped-'));
+
+function clearResults() {
+  zipTask?.();
+  zipTask = null;
+  outputs = null;
+  $('results').open = false;
+  $('download').disabled = true;
+  $('progress').value = 0;
+  $('elapsed').textContent = '';
 }
 
-async function load(file) {
-  if (busy || !file) return;
-  try {
-    if (!/\.nii(\.gz)?$/i.test(file.name)) throw new Error('Choose a NIfTI image (.nii or .nii.gz).');
-    const volume = readVolume(await file.arrayBuffer());
-    source = file;
-    outputs = null;
-    displayed = 'original';
-    $('results').open = false;
-    $('download').disabled = true;
-    renderResults();
-    updateOpacityControl('original');
-    $('fileInfo').hidden = false;
-    $('fileInfo').innerHTML = `<strong></strong> · ${volume.dims.join(' × ')} voxels`;
-    $('fileInfo').querySelector('strong').textContent = file.name;
-    $('dropZone').classList.add('has-files');
-    $('runButton').disabled = true;
-    $('progress').value = 0;
-    await show(file);
-    $('runButton').disabled = false;
-    status(`Ready to normalize · ${file.name}`);
-  } catch (error) {
-    source = null;
-    $('runButton').disabled = true;
-    renderResults();
-    status(error.message, true);
-  }
+async function inspectInput(file) {
+  if (!/\.nii(?:\.gz)?$/i.test(file.name)) throw new Error('Choose a NIfTI image (.nii or .nii.gz).');
+  const volume = readVolume(await file.arrayBuffer());
+  return { file, volume };
 }
 
-function setAdditional(files) {
-  additional = files.map((file) => ({ file, type: 'image' }));
-  $('additionalList').replaceChildren(...additional.map((item, index) => {
-    const select = createElement('select', { id: `type-${index}`, 'aria-label': `Image type for ${item.file.name}` });
-    for (const [value, text] of [['image', 'Continuous image'], ['binary', 'Binary lesion (0/1)'], ['labels', 'Categorical labels']]) select.add(new Option(text, value));
-    select.onchange = () => { item.type = select.value; };
-    return createElement('div', { className: 'nd-field' }, [createElement('label', { for: select.id, text: item.file.name }), select]);
-  }));
+function commitInput(slot, { file, volume }) {
+  inputs[slot] = file;
+  fileFields[slot].setHasFiles(true);
+  fileFields[slot].setText(file.name);
+  const information = $(`${slot}Info`);
+  information.hidden = false;
+  information.textContent = `${volume.dims.join(' × ')} voxels`;
+  const clear = slot === 'lesion' ? $('clearLesion') : slot === 'pathological' ? $('clearPathological') : null;
+  if (clear) clear.hidden = false;
+  clearResults();
+  rebuildViewItems(`input:${slot}`);
+  $('runButton').disabled = busy || !inputs.primary;
 }
 
-async function importScans(filesPromise, primary) {
+async function importScans(slot, filesPromise) {
   if (busy) return;
   const controller = new AbortController();
   importAbort = controller;
-  if (primary) { source = null; outputs = null; renderResults(); }
+  inputs[slot] = null;
+  fileFields[slot].setHasFiles(false);
+  fileFields[slot].setText(slot === 'primary' ? 'Drop primary NIfTI or DICOM files' : slot === 'lesion' ? 'Drop a binary lesion map' : 'Drop pathological modality files');
+  $(`${slot}Info`).hidden = true;
+  if (slot === 'lesion') $('clearLesion').hidden = true;
+  if (slot === 'pathological') $('clearPathological').hidden = true;
+  clearResults();
+  rebuildViewItems();
   setBusy(true);
-  status('Reading images · converting DICOM if needed…');
+  setStatus('Reading images · converting DICOM if needed…');
   try {
     const files = await filesPromise;
-    if (!files.length) return;
     const images = await readImageFiles(files, { signal: controller.signal });
     controller.signal.throwIfAborted();
-    if (!images.length) throw new Error('Choose NIfTI files or a complete DICOM series.');
-    if (primary && images.length !== 1) throw new Error('Choose one anatomical image or one DICOM series at a time.');
-    if (primary) { setBusy(false); await load(images[0]); }
-    else {
-      for (const file of images) readVolume(await file.arrayBuffer());
-      controller.signal.throwIfAborted();
-      setAdditional(images);
-      status('Accompanying images loaded · choose their image types');
-    }
+    if (images.length !== 1) throw new Error('Choose one NIfTI image or one complete DICOM series for this slot.');
+    const inspected = await inspectInput(images[0]);
+    controller.signal.throwIfAborted();
+    commitInput(slot, inspected);
+    setStatus(`${slot === 'primary' ? 'Primary scan' : slot === 'lesion' ? 'Lesion map' : 'Pathological modality'} loaded · ${images[0].name}`);
   } catch (error) {
-    if (!controller.signal.aborted) status(error.message, true);
+    if (!controller.signal.aborted) setStatus(error.message, true);
   } finally {
-    if (importAbort === controller) { importAbort = null; setBusy(false); }
+    if (importAbort === controller) {
+      importAbort = null;
+      setBusy(false);
+    }
   }
 }
-// The native inputs keep their selection so reopening a section shows what was chosen.
-const filesFromInput = (input) => Promise.resolve(Array.from(input.files));
-$('input').onchange = () => importScans(filesFromInput($('input')), true);
-$('additional').onchange = () => importScans(filesFromInput($('additional')), false);
-bindFileDrop($('dropZone'), (files) => importScans(files, true));
-bindFileDrop($('additional').closest('.nd-file'), (files) => importScans(files, false));
 
-$('example').onclick = async () => {
+for (const [slot, field] of Object.entries(fileFields)) {
+  field.onFiles((files) => importScans(slot, files));
+}
+
+$('tutorial').onchange = async () => {
+  const id = $('tutorial').value;
+  tutorialAbort?.abort();
+  if (!id) return;
+  const controller = new AbortController();
+  tutorialAbort = controller;
   setBusy(true);
-  status('Downloading OpenNeuro ds000001/sub-01…');
-  exampleAbort = new AbortController();
   try {
-    const response = await fetch(import.meta.env.VITE_SYNCRO_EXAMPLE_URL || 'https://s3.amazonaws.com/openneuro.org/ds000001/sub-01/anat/sub-01_T1w.nii.gz', { signal: exampleAbort.signal });
-    if (!response.ok) throw new Error('Example download failed.');
-    const bytes = await response.arrayBuffer();
-    setBusy(false);
-    await load(new File([bytes], 'sub-01_T1w.nii.gz'));
+    const tutorial = await fetchTutorial(id, {
+      signal: controller.signal,
+      onProgress(value, message) {
+        $('progress').value = value;
+        setStatus(message);
+      },
+    });
+    const asFile = (item) => item ? new File([item.bytes], item.name) : null;
+    const inspected = {};
+    for (const slot of ['primary', 'lesion', 'pathological']) {
+      const file = asFile(tutorial[slot]);
+      if (file) inspected[slot] = await inspectInput(file);
+    }
+    controller.signal.throwIfAborted();
+    inputs = { primary: null, lesion: null, pathological: null };
+    for (const [slot, field] of Object.entries(fileFields)) {
+      field.setHasFiles(false);
+      field.setText(slot === 'primary' ? 'Drop primary NIfTI or DICOM files' : slot === 'lesion' ? 'Drop a binary lesion map' : 'Drop pathological modality files');
+      $(`${slot}Info`).hidden = true;
+    }
+    $('clearLesion').hidden = true;
+    $('clearPathological').hidden = true;
+    for (const slot of ['primary', 'lesion', 'pathological']) {
+      if (inspected[slot]) commitInput(slot, inspected[slot]);
+    }
+    $('ct').checked = tutorial.ct;
+    $('keepSynth').checked = tutorial.keep_synth;
+    $('tutorial').value = '';
+    rebuildViewItems('input:primary');
+    $('progress').value = 0;
+    setStatus('Tutorial ready · review the inputs, then normalize to MNI');
   } catch (error) {
-    setBusy(false);
-    if (error.name !== 'AbortError') status(error.message, true);
+    $('tutorial').value = '';
+    if (error.name !== 'AbortError') setStatus(error.message, true);
   } finally {
-    exampleAbort = null;
+    if (tutorialAbort === controller) {
+      tutorialAbort = null;
+      setBusy(false);
+    }
   }
 };
 
+function clearOptionalInput(slot) {
+  inputs[slot] = null;
+  fileFields[slot].setHasFiles(false);
+  fileFields[slot].setText(slot === 'lesion' ? 'Drop a binary lesion map' : 'Drop pathological modality files');
+  $(`${slot}Info`).hidden = true;
+  $(slot === 'lesion' ? 'clearLesion' : 'clearPathological').hidden = true;
+  $('tutorial').value = '';
+  clearResults();
+  rebuildViewItems('input:primary');
+  setStatus(`${slot === 'lesion' ? 'Lesion map' : 'Pathological modality'} removed`);
+}
+
+$('clearLesion').onclick = () => clearOptionalInput('lesion');
+$('clearPathological').onclick = () => clearOptionalInput('pathological');
+
+$('viewSelect').onchange = () => {
+  updateDownloadSelected();
+  void show(viewItems.get($('viewSelect').value));
+};
+
 $('runButton').onclick = () => {
-  if (!source || busy) return;
-  outputs = null;
-  displayed = 'original';
-  renderResults();
-  updateOpacityControl('original');
+  if (!inputs.primary || busy) return;
+  clearResults();
+  rebuildViewItems('input:primary');
   setBusy(true);
-  status('Preparing normalization…');
-  $('progress').value = 0;
-  $('results').open = false;
   technicalLog.console.clear();
-  start = performance.now();
-  timer = setInterval(() => { $('elapsed').textContent = `${Math.round((performance.now() - start) / 1000)} s`; }, 1000);
+  setStatus('Preparing normalization…');
+  $('progress').value = 0;
+  started = performance.now();
+  timer = setInterval(() => {
+    $('elapsed').textContent = `${Math.round((performance.now() - started) / 1000)} s`;
+  }, 1000);
   worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
-  worker.onerror = (event) => { status(event.message ? `Processing failed: ${event.message}` : 'Could not load the processing worker. Reload the page and try again.', true); setBusy(false); };
-  const stageRanges = { synthsr: [0, 0.45], mindgrab: [0.45, 0.25], synthstrip: [0.45, 0.25], registration: [0.7, 0.25], resampling: [0.95, 0.05], complete: [1, 0] };
-  const stageLabels = { synthsr: 'Synthesizing T1…', mindgrab: 'Extracting brain with MindGrab…', synthstrip: 'Extracting brain with SynthStrip…', registration: 'Registering to MNI…', resampling: 'Warping original images…' };
+  worker.onerror = (event) => {
+    setStatus(event.message ? `Processing failed: ${event.message}` : 'Could not load the processing worker. Reload the page and try again.', true);
+    setBusy(false);
+  };
+  const stageRanges = {
+    'pathological-registration': [0, 0.1],
+    synthsr: [0.1, 0.4],
+    mindgrab: [0.5, 0.2],
+    synthstrip: [0.5, 0.2],
+    registration: [0.7, 0.25],
+    resampling: [0.95, 0.05],
+    complete: [1, 0],
+  };
+  const stageLabels = {
+    'pathological-registration': 'Aligning pathological modality to primary scan…',
+    synthsr: 'Synthesizing T1…',
+    mindgrab: 'Extracting brain with MindGrab…',
+    synthstrip: 'Extracting brain with SynthStrip…',
+    registration: `Registering to MNI with ${$('normalization').value === 'greedy' ? 'Greedy' : 'ANTs'}…`,
+    resampling: 'Warping input images…',
+  };
   worker.onmessage = ({ data }) => {
-    if (data.type === 'log') { log(data.message); return; }
+    if (data.type === 'log') {
+      technicalLog.log(data.message);
+      return;
+    }
     if (data.type === 'error') {
-      if (/Accompanying|Binary lesion|Label images/.test(data.message)) $('additionalSection').open = true;
-      status(data.message, true);
+      setStatus(data.message, true);
+      $('inputSection').open = true;
       setBusy(false);
       return;
     }
     if (data.type === 'progress') {
       const [offset, span] = stageRanges[data.stage] || [0, 0];
       if (data.value !== null) $('progress').value = offset + span * data.value;
-      status(data.message || stageLabels[data.stage] || data.stage);
+      setStatus(data.message || stageLabels[data.stage] || data.stage);
       return;
     }
     if (data.type === 'result') {
       outputs = data.outputs;
       setBusy(false);
       $('progress').value = 1;
-      status('Normalization complete · review the MNI alignment');
       $('results').open = true;
-      renderResults();
-      viewResult('warped-original.nii.gz');
+      $('download').disabled = false;
+      const normalizedPrimary = prefixed('w', inputs.primary.name);
+      rebuildViewItems(`output:${normalizedPrimary}`);
+      setStatus('Normalization complete · review the MNI-space outputs');
     }
   };
   worker.postMessage({
-    input: source,
-    additional,
-    ct: $('modality').value === 'ct',
+    input: inputs.primary,
+    lesion: inputs.lesion,
+    pathological: inputs.pathological,
+    ct: $('ct').checked,
+    keepSynth: $('keepSynth').checked,
     synthsrBackend: $('synthsrBackend').value,
     brainExtractor: $('brainExtractor').value,
+    normalization: $('normalization').value,
     modelBase: import.meta.env.VITE_SYNCRO_MODEL_BASE,
     mindgrabAssetPath: new URL('mindgrab/', base).href,
     templateURL: templateAsset.url,
+    greedyURL: new URL('greedy-wasm/greedy_rs_wasm.js', base).href,
     registrationURL: new URL('registration/syncro-registration.mjs', base).href,
   });
 };
@@ -312,17 +501,50 @@ $('runButton').onclick = () => {
 $('cancel').onclick = () => {
   importAbort?.abort();
   importAbort = null;
-  exampleAbort?.abort();
+  tutorialAbort?.abort();
+  tutorialAbort = null;
+  $('tutorial').value = '';
   setBusy(false);
-  status('Processing cancelled');
+  setStatus('Processing cancelled');
   $('progress').value = 0;
+  $('elapsed').textContent = '';
 };
 
 $('opacity').oninput = () => {
   $('opacityValue').textContent = `${$('opacity').value}%`;
-  if (viewer?.volumes.length > 1) { viewer.volumes[1].opacity = Number($('opacity').value) / 100; viewer.updateGLVolume(); }
+  if (viewer?.volumes.length > 1) {
+    viewer.volumes[1].opacity = Number($('opacity').value) / 100;
+    viewer.updateGLVolume();
+  }
 };
-$('download').onclick = () => { if (outputs) download(zipSync(outputs, { level: 1 }), 'syncro-results.zip', 'application/zip'); };
 
-renderResults();
-window.addEventListener('pagehide', () => { importAbort?.abort(); worker?.terminate(); exampleAbort?.abort(); clearInterval(timer); });
+$('downloadSelected').onclick = () => {
+  const item = viewItems.get($('viewSelect').value);
+  if (item?.outputName) download(outputs[item.outputName], item.outputName);
+};
+
+$('download').onclick = () => {
+  if (!outputs || zipTask) return;
+  $('download').disabled = true;
+  setStatus('Preparing result archive…');
+  const cancel = zip(outputs, { level: 1 }, (error, bytes) => {
+    if (zipTask !== cancel) return;
+    zipTask = null;
+    $('download').disabled = busy || !outputs;
+    if (error) setStatus(`Could not create result archive: ${error.message}`, true);
+    else {
+      download(bytes, 'syncro-results.zip', 'application/zip');
+      setStatus('Result archive ready');
+    }
+  });
+  zipTask = cancel;
+};
+
+rebuildViewItems();
+window.addEventListener('pagehide', () => {
+  importAbort?.abort();
+  tutorialAbort?.abort();
+  worker?.terminate();
+  zipTask?.();
+  clearInterval(timer);
+});

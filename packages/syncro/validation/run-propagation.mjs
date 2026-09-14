@@ -8,7 +8,8 @@ const engine=await createRegistration({createModule,wasmBinary:await readFile(ne
 const transforms={};for(const name of ['0GenericAffine.mat','1Warp.nii.gz','1InverseWarp.nii.gz'])transforms[name]=await readFile(w+'/reference/transform-'+name);
 const reg=engine.importTransforms({fixed:writeVolume(readVolume(asBuffer(await readFile(w+'/reference/template.nii.gz')))),transforms});
 try{for(const type of ['binary','labels']){
- const volume=prepareAdditional(readVolume(asBuffer(await readFile(w+'/'+type+'.nii.gz'))),type);
+ const source=readVolume(asBuffer(await readFile(w+'/'+type+'.nii.gz')));
+ const volume=type==='binary'?prepareAdditional(source,type):source;
  if(type==='binary')await writeFile(w+'/web-binary-smoothed.nii',new Uint8Array(writeVolume(volume)));
  let out=engine.apply({registration:reg,moving:writeVolume(volume),interpolation:type==='labels'?'nearest':'linear'});
  if(type==='binary')out=new Uint8Array(writeVolume(thresholdBinary(readVolume(asBuffer(out)))));

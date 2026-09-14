@@ -20,6 +20,7 @@
             <span>Drop moving NIfTI or DICOM files or folder</span>
           </label>
           <p id="movingInfo" class="nd-file-info" hidden></p>
+          <button id="movingExtractButton" class="nd-btn nd-btn-secondary nd-btn-sm" type="button" disabled>Brain extract moving image</button>
           <div id="movingSeriesField" class="nd-field" hidden>
             <label for="movingSeries">Moving series</label>
             <select id="movingSeries"></select>
@@ -34,6 +35,7 @@
             <span>Drop stationary NIfTI or DICOM files or folder</span>
           </label>
           <p id="stationaryInfo" class="nd-file-info" hidden></p>
+          <button id="stationaryExtractButton" class="nd-btn nd-btn-secondary nd-btn-sm" type="button" disabled>Brain extract stationary image</button>
           <div id="stationarySeriesField" class="nd-field" hidden>
             <label for="stationarySeries">Stationary series</label>
             <select id="stationarySeries"></select>
@@ -50,8 +52,7 @@
               <option value="deformable">Affine + nonlinear · NMI</option>
             </select>
           </div>
-          <button id="extractButton" class="nd-btn nd-btn-secondary nd-btn-sm" type="button" disabled>Brain extract moving image</button>
-          <p class="nd-hint">Custom images are brain extracted with MindGrab before registration. The examples are already brain-only.</p>
+          <p class="nd-hint">Registration expects brain-only images: a scan that still includes scalp produces artifacts. Brain extract it with MindGrab using the button under the image; the examples are already brain-only.</p>
           <button id="runButton" class="nd-btn nd-btn-primary" type="button" disabled>Register images</button>
         </div>
       </details>

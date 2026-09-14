@@ -28,6 +28,33 @@ export function registerGreedy({ api, fixed, moving, mode = "affine", iterations
   return { image: api.reslice_warp_affine(fixedBytes, movingBytes, warp, matrix), matrix, warp };
 }
 
+export function registerAffineGreedy({ api, fixed, moving, iterations = "100x50x10" }) {
+  if (!api) throw new Error("Greedy WebAssembly is not initialized.");
+  return api.register_affine_wasm(bytes(fixed), bytes(moving), "NMI", iterations);
+}
+
+export function resliceGreedy({ api, fixed, moving, registration, precedingMatrix = null, interpolation = "linear", fill = 0 }) {
+  if (!api) throw new Error("Greedy WebAssembly is not initialized.");
+  if (!registration?.matrix || !registration?.warp) throw new Error("Greedy deformable transforms are required.");
+  if (!new Set(["linear", "nearest"]).has(interpolation) || !Number.isFinite(fill)) throw new Error("Invalid resampling settings.");
+  return api.reslice_warp_affine_options(
+    bytes(fixed),
+    bytes(moving),
+    bytes(registration.warp),
+    registration.matrix,
+    precedingMatrix,
+    interpolation === "nearest",
+    fill,
+  );
+}
+
+export function resliceAffineGreedy({ api, fixed, moving, matrix, interpolation = "linear", fill = 0 }) {
+  if (!api) throw new Error("Greedy WebAssembly is not initialized.");
+  if (!matrix) throw new Error("A Greedy affine transform is required.");
+  if (!new Set(["linear", "nearest"]).has(interpolation) || !Number.isFinite(fill)) throw new Error("Invalid resampling settings.");
+  return api.reslice_affine_options(bytes(fixed), bytes(moving), matrix, interpolation === "nearest", fill);
+}
+
 export function isGzip(value) {
   const input = bytes(value);
   return input.length >= 2 && input[0] === 0x1f && input[1] === 0x8b;

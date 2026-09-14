@@ -1,9 +1,14 @@
 import {test,expect} from '@playwright/test';
-import {readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {readFile,writeFile} from 'node:fs/promises';
+import {cpus,totalmem} from 'node:os';
+import {basename} from 'node:path';
 const VERSION=JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8')).version;
 import {fileURLToPath} from 'node:url';
-import {readVolume} from '../src/volume.js';
+import {prepare,readVolume} from '../src/volume.js';
+import {planGpuGraph} from '@neurodesk/synthsr/browser';
 const fixture=(name)=>fileURLToPath(new URL('../test/fixtures/'+name,import.meta.url));
+const hash=(bytes)=>createHash('sha256').update(bytes).digest('hex');
 
 test('load, invalid input, and cancellation preserve the original',async({page})=>{
   await page.goto('./');await expect(page).toHaveTitle(/SynthSR/);
@@ -44,8 +49,10 @@ for(const backend of ['webgpu','wasm']) test(`full-volume ${backend} regression 
   await expect(page.locator('#processButton')).toBeEnabled();
   await page.locator('#processingSettings > summary').click();
   await page.locator('#backend').selectOption(backend);
+  const started=performance.now();
   await page.locator('#processButton').click();
   await expect(page.locator('#saveBtn')).toBeEnabled({timeout:840000});
+  const wallSeconds=(performance.now()-started)/1000;
   const pending=page.waitForEvent('download');await page.locator('#saveBtn').click();
   const bytes=await readFile(await (await pending).path());
   const output=readVolume(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
@@ -59,6 +66,45 @@ for(const backend of ['webgpu','wasm']) test(`full-volume ${backend} regression 
   expect(max).toBeLessThanOrEqual(1);
   expect(mismatches/output.data.length).toBeLessThan(.001);
   for(let r=0;r<3;r++)for(let c=0;c<4;c++)expect(Math.abs(output.affine[r][c]-expected.affine[r][c])).toBeLessThan(2e-5);
+  if(process.env.SYNTHSR_VALIDATION_REPORT){
+    const provenanceDownload=page.waitForEvent('download');
+    await page.locator('#reportBtn').click();
+    const provenance=JSON.parse(await readFile(await (await provenanceDownload).path(),'utf8'));
+    const sourceBytes=await readFile(process.env.SYNTHSR_FULL_INPUT);
+    const sourceBuffer=sourceBytes.buffer.slice(sourceBytes.byteOffset,sourceBytes.byteOffset+sourceBytes.byteLength);
+    const sourceVolume=readVolume(sourceBuffer);
+    const prep=prepare(sourceVolume);
+    const plan=planGpuGraph(prep.paddedDims);
+    const browser=await page.evaluate(async()=>{
+      const adapter=await navigator.gpu?.requestAdapter();
+      return {
+        userAgent:navigator.userAgent,
+        hardwareConcurrency:navigator.hardwareConcurrency,
+        gpu:adapter?{
+          architecture:adapter.info.architecture,
+          description:adapter.info.description,
+          device:adapter.info.device,
+          vendor:adapter.info.vendor,
+        }:null,
+      };
+    });
+    await writeFile(process.env.SYNTHSR_VALIDATION_REPORT,JSON.stringify({
+      schemaVersion:1,
+      date:new Date().toISOString(),
+      command:'pnpm --filter synthsr test:e2e --grep "full-volume webgpu regression"',
+      backend,
+      source:{name:basename(process.env.SYNTHSR_FULL_INPUT),sha256:hash(sourceBytes),shape:sourceVolume.dims},
+      preparation:{resampledShape:prep.dims,paddedShape:prep.paddedDims},
+      gpuPlan:{largestBufferBytes:Math.max(...plan.slots.map(slot=>slot.bytes)),reusableBufferBytes:plan.slots.reduce((sum,slot)=>sum+slot.bytes,0)},
+      modelSha256:provenance.modelSha256,
+      output:{sha256:hash(bytes),shape:output.dims},
+      reference:{name:basename(process.env.SYNTHSR_FULL_REFERENCE),sha256:hash(ref),shape:expected.dims},
+      comparison:{maxError:max,mismatches,voxels:output.data.length,maxAffineError:Math.max(...output.affine.slice(0,3).flatMap((row,r)=>row.map((value,c)=>Math.abs(value-expected.affine[r][c]))))},
+      timing:{browserPipelineSeconds:provenance.seconds,playwrightProcessSeconds:wallSeconds,timings:provenance.timings},
+      environment:{host:`${cpus()[0]?.model||'unknown CPU'}; ${(totalmem()/2**30).toFixed(0)} GiB RAM`,browser},
+      settings:{ct:false,flip:true,sharpen:true,tiled:false},
+    },null,2)+'\n');
+  }
 });
 
 for(const backend of ['wasm','webgpu']) test(`real ${backend} inference matches TensorFlow and downloads provenance`,async({page})=>{

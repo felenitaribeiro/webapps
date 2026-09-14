@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-09-13T15:57:30.961Z",
+  "command": "SYNTHSR_HARDWARE_GPU=1 SYNTHSR_ASSET_DIR=<model-dir> SYNTHSR_FULL_INPUT=<input> SYNTHSR_FULL_REFERENCE=<reference> SYNTHSR_VALIDATION_REPORT=<report> pnpm --filter synthsr test:e2e --grep \"full-volume webgpu regression\"",
+  "backend": "webgpu",
+  "source": {
+    "name": "sub-dr_ses-1_T1w.nii.gz",
+    "sha256": "838d587dbc92007977c4f9994f0e419c6e7245de4655a924114bc29caa1a38aa",
+    "datatype": "int16",
+    "shape": [
+      192,
+      256,
+      256
+    ],
+    "spacingMm": [
+      0.8999999761581421,
+      0.9375,
+      0.9375
+    ]
+  },
+  "preparation": {
+    "resampledShape": [
+      173,
+      241,
+      241
+    ],
+    "paddedShape": [
+      192,
+      256,
+      256
+    ]
+  },
+  "gpuPlan": {
+    "largestBufferBytes": 2415919104,
+    "reusableBufferBytes": 5757468672
+  },
+  "modelSha256": "276151128c666f81eba80a6afb7f307aa3c7d58825748029ba67cf170f1460a3",
+  "output": {
+    "sha256": "b9bef3824e055e8bf2ac873e4706abe833c2ddeb0c0ea3f2ac8214fc3db9b7ad",
+    "shape": [
+      173,
+      241,
+      241
+    ]
+  },
+  "reference": {
+    "name": "native.nii.gz",
+    "backend": "native ONNX Runtime CPU, synthsr 0.3.20260910, eight threads",
+    "seconds": 17.633623625,
+    "sha256": "89ef896c32b8f21191d1a4f57e89847e791bb163b943eda2fe7fb1ad6273e04b",
+    "shape": [
+      173,
+      241,
+      241
+    ]
+  },
+  "comparison": {
+    "maxError": 1,
+    "mismatches": 517,
+    "voxels": 10048013,
+    "maxAffineError": 0
+  },
+  "timing": {
+    "browserPipelineSeconds": 8.772504999995231,
+    "playwrightProcessSeconds": 9.092584374999998,
+    "timings": {
+      "read": 0.15835999995470046,
+      "preprocess": 0.9258050000071526,
+      "model": 0.11960500001907348,
+      "initialize": 0.37941500002145767,
+      "inference": 5.50402999997139,
+      "release": 0.00006999999284744263,
+      "postprocess": 1.6851949999928475
+    }
+  },
+  "environment": {
+    "host": "Apple M4 Pro; 48 GiB RAM",
+    "browser": {
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/149.0.7827.55 Safari/537.36",
+      "hardwareConcurrency": 14,
+      "gpu": {
+        "architecture": "metal-3",
+        "vendor": "apple"
+      }
+    }
+  },
+  "settings": {
+    "ct": false,
+    "flip": true,
+    "sharpen": true,
+    "tiled": false
+  },
+  "scope": "Engineering parity for one scan, model, browser build and GPU; not clinical validation or a cross-device performance guarantee."
+}
