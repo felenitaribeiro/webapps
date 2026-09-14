@@ -55,7 +55,7 @@ test('native packages share one gated publisher while signing stays isolated', a
 });
 
 test('native and independent test workflows pin actions and discard checkout credentials', async () => {
-  for (const name of ['synthsr-native', 'synthseg-native', 'syncro-native', 'sct-full-tests']) {
+  for (const name of ['synthsr-native', 'synthseg-native', 'syncro-native', 'greedy-native', 'sct-full-tests']) {
     const flow = await workflow(name);
     for (const job of Object.values(flow.jobs)) {
       for (const step of job.steps) {

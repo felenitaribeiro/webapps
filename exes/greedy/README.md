@@ -5,6 +5,40 @@ SSD/NMI affine, nonlinear NMI stationary-velocity, and reslice. Native CLI
 plus a `wasm-bindgen` API. The core has two dependencies (`flate2`, and
 `rayon` behind the default `parallel` feature) and no unsafe code.
 
+## Offline distributions
+
+The `greedy-native` workflow prepares `greedy-VERSION-linux-x64.tar.gz`,
+`greedy-VERSION-windows-x64.zip`, `greedy-VERSION-macos-arm64.pkg` and
+`neurodesk-greedy-VERSION.tgz`. Linux targets Ubuntu 22.04 or a compatible newer
+glibc system. The Apple installer installs `/usr/local/bin/greedy-rs`; Linux
+and Windows archives contain the executable and attribution files. No models
+or network access are required at execution time.
+
+For npm installation, see the [package instructions](../../packages/greedy/README.md).
+The `.pkg` is signed and notarized only during a release dispatch. Test installers
+have `-adhoc` in their filenames and are not uploaded as release assets.
+
+Build and exercise a Linux archive locally:
+
+```bash
+python3 scripts/package-greedy.py package linux-x64
+```
+
+Run this command from the repository root with Python 3.12 or later. Windows and Apple ARM packages must
+be built on their corresponding machines. The packaging script extracts the
+archive and checks a generated NIfTI reslice before writing its checksum and
+validation report.
+
+To release, create a draft or prerelease tagged `greedy-vVERSION` at the exact
+workflow commit, then dispatch `greedy-native` with `sign_release=true`. Apple
+signing uses the existing `APPLEID`, `APPLEIDPASS`, `APPLE_TEAM_ID`, `CSC_LINK`,
+`CSC_KEY_PASSWORD`, `CSC_INSTALLER_LINK` and `CSC_INSTALLER_KEY_PASSWORD` secrets.
+The workflow attaches artifacts after native and installed npm tests pass.
+It does not publish the package to the npm registry.
+
+The [catalog rollout plan](../../docs/architecture/offline-executables.md) records
+remaining applications and the required release checks.
+
 ## Build and check
 
 ```sh

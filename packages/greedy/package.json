@@ -1,7 +1,7 @@
 {
   "name": "@neurodesk/greedy",
-  "version": "0.1.20260914",
-  "description": "Greedy affine and deformable MRI registration for browsers",
+  "version": "0.2.20260914",
+  "description": "Greedy MRI registration for browsers and offline command-line workflows",
   "type": "module",
   "license": "Apache-2.0",
   "engines": {
@@ -14,16 +14,23 @@
     "src",
     "README.md",
     "LICENSE",
-    "NOTICE"
+    "NOTICE",
+    "bin",
+    "native",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
     "build:wasm": "node scripts/build-wasm.mjs",
     "test": "node --test test/*.test.js",
-    "lint": "node --check src/index.js"
+    "lint": "node --check src/index.js && node --check src/node.js && node --check bin/greedy.js && node --check scripts/check-package.mjs",
+    "prepack": "node scripts/check-package.mjs"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/neurodesk/webapps.git",
     "directory": "packages/greedy"
+  },
+  "bin": {
+    "greedy-rs": "./bin/greedy.js"
   }
 }

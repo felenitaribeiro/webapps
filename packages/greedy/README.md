@@ -1,8 +1,30 @@
 # @neurodesk/greedy
 
-Browser wrapper for the threaded WebAssembly build of `exes/greedy`.
+Offline command-line distribution and browser wrapper for `exes/greedy`.
 The package exposes the small affine/deformable registration pipeline and gzip
 boundary helpers.
+
+## Install the offline CLI
+
+Download `neurodesk-greedy-VERSION.tgz` from the matching Greedy GitHub release,
+then install the local file with Node.js 22 or later:
+
+```bash
+npm install --global --offline --no-audit --no-fund ./neurodesk-greedy-VERSION.tgz
+greedy-rs --version
+greedy-rs -d 3 -a -m NMI -i fixed.nii.gz moving.nii.gz -o affine.mat -ia-image-centers -n 100x50x10
+```
+
+The tarball bundles Linux x64, Windows x64 and Apple ARM executables. Execution
+needs no model, network connection or compiler. The command accepts the same
+flags as the [native CLI](../../exes/greedy/README.md). The signed and notarized
+macOS installer is distributed separately as a `.pkg`.
+
+To build a complete tarball, run the `greedy-native` workflow. Each platform
+build stages its executable under `native/`; `npm pack` fails if any target is
+missing. The workflow tests the installed tarball on all supported platforms
+before attaching it to a release. The generated browser WASM runtime remains
+in the web release, outside the npm package.
 
 ## Attribution
 

@@ -74,3 +74,6 @@ apps/*/web/dcm2niix/
 apps/*/web/nifti-js/
 apps/qsmbly/dcm2niix/
 apps/qsmbly/nifti-js/
+
+packages/greedy/native/
+.audit/
