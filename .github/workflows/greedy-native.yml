@@ -176,6 +176,8 @@ jobs:
   macos-sign:
     if: github.event_name == 'workflow_dispatch' && inputs.sign_release
     needs: native
+    permissions:
+      contents: write
     runs-on: macos-15
     timeout-minutes: 60
     steps:
