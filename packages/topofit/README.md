@@ -82,3 +82,14 @@ two original cortex labels, as in OpenRecon. The surfaces directory contains
 bilateral white, pial and registration outputs. Validation covers local normals,
 atlas mapping, medial-wall erosion, exact patch membership and geometry metrics.
 Synthetic cases additionally compare triangle-to-voxel intersection masks.
+
+### Repeat analysis after reconstruction
+
+`runTopofit()` also returns `surfaces`, containing the reconstructed vertex arrays
+and hemisphere face arrays. Retain it with the original source buffer and
+provenance, then call `runSurfaceAnalysis({ buffer, surfaces, provenance,
+estimateNormals, patches, roiBuffer, loadAtlas, cortexAtlasSha256, onProgress })`.
+The analysis call returns analysis files and an updated processing manifest. It
+does not invoke reconstruction or change the retained geometry. It replaces
+previous analysis hashes and ROI/atlas metadata while preserving reconstruction
+hashes. The browser retains this geometry only for the current loaded scan.

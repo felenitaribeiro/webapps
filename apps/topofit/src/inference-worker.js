@@ -75,7 +75,7 @@ self.onmessage = async ({ data: job }) => {
       Tensor,
       onProgress: progress,
       runtime: {
-        app: 'TopoFit web 0.5.20260914',
+        app: 'TopoFit web 0.6.20260914',
         release: manifest.release,
         conformer: '@niivue/niimath -conform -ras',
         assets: Object.fromEntries(manifest.assets.map(({ filename, sha256 }) => [filename, sha256])),
@@ -83,7 +83,7 @@ self.onmessage = async ({ data: job }) => {
         ...browserRuntime(),
       },
     });
-    self.postMessage({ type: 'result', ...result }, result.files.map((file) => file.bytes));
+    self.postMessage({ type: 'result', ...result }, [...result.files.map((file) => file.bytes), ...Object.values(result.surfaces.vertices).map((array) => array.buffer), ...Object.values(result.surfaces.faces).map((array) => array.buffer)]);
   } catch (error) {
     self.postMessage({ type: 'error', message: error.message || String(error) });
   }
