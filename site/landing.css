@@ -409,7 +409,10 @@ h1 {
 .analytics-table thead th { color: var(--muted); background: var(--white); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
 .analytics-table tbody th { color: var(--ink); font-weight: 600; }
 .analytics-table tbody tr:last-child :is(th, td) { border-bottom: 0; }
-.analytics-table a { color: var(--green-light); text-underline-offset: 0.2rem; }
+.analytics-table a {
+  color: var(--green-dark);
+  text-underline-offset: 0.2rem;
+}
 .analytics-privacy { max-width: 58rem; margin: 1rem 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.55; }
 
 .site-footer { width: 100%; background: var(--header); color: #b9beb7; }
