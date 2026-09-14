@@ -1,5 +1,11 @@
 # @neurodesk/topofit
 
+## 0.5.20260914
+
+### Minor Changes
+
+- Remove registration spheres from the browser output list and label cortical patches by side and number, such as "Left flat patch 1". Clip meshes to the current slice so scrolling away from a patch does not project it onto unrelated anatomy. Remove the motion-clearance and prescription wording from the application, processing manifest and QC image header.
+
 ## 0.4.20260914
 
 ### Minor Changes

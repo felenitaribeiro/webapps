@@ -229,8 +229,7 @@ export async function runTopofit(options) {
   outputSha256['topofit_qc.nii'] = await sha256(qc);
   const provenance = {
     schemaVersion: 2,
-    status: 'SURFACE_READY_RESEARCH_ONLY',
-    warning: 'RESEARCH ONLY - NOT MOTION-CLEARED - NOT FOR PRESCRIPTION',
+    status: 'SURFACE_READY',
     model,
     conformed,
     sourceShape: source.dims,

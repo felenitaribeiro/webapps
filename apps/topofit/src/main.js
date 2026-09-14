@@ -51,8 +51,6 @@ const stageLabels = {
   'rh-white': 'Right white surface',
   'lh-pial': 'Left pial surface',
   'rh-pial': 'Right pial surface',
-  'lh-registration': 'Left registration sphere',
-  'rh-registration': 'Right registration sphere',
   provenance: 'Processing manifest',
   'lh-normals': 'Left mid-surface normals',
   'rh-normals': 'Right mid-surface normals',
@@ -65,8 +63,6 @@ const meshColors = {
   'rh-white': [1, 0.7, 0.3, 1],
   'lh-pial': [0.15, 0.35, 1, 1],
   'rh-pial': [1, 0.25, 0.15, 1],
-  'lh-registration': [0.35, 0.7, 1, 1],
-  'rh-registration': [1, 0.7, 0.3, 1],
 };
 const xrayValue = createElement('span', { id: 'meshXRayValue', text: '10%' });
 const xrayInput = createElement('input', {
@@ -122,6 +118,11 @@ const results = new StageResultList({
   },
 });
 
+function resultLabel(stage) {
+  const patch = /^(LH|RH)(\d+)$/.exec(stage);
+  return patch ? `${patch[1] === 'LH' ? 'Left' : 'Right'} flat patch ${Number(patch[2])}` : stageLabels[stage] || stage;
+}
+
 function status(message, error = false) {
   $('statusText').textContent = message;
   $('statusText').classList.toggle('error', error);
@@ -150,6 +151,7 @@ async function ensureViewer() {
         isDragDropEnabled: false,
         backgroundColor: [0.04, 0.06, 0.08, 1],
         meshXRay: Number(xrayInput.value),
+        meshThicknessOn2D: 1,
       });
       await viewer.attachTo('gl1');
       viewer.sliceType = SLICE_TYPE.MULTIPLANAR;
@@ -233,7 +235,7 @@ async function showResult(stage) {
     content.className = 'nd-console-output';
     const text = await file.text();
     content.textContent = text.length > 16000 ? `${text.slice(0, 16000)}\n\nPreview truncated. Download the complete file.` : file.type === 'application/json' ? JSON.stringify(JSON.parse(text), null, 2) : text;
-    info.open(results.stageLabels[stage] || file.name, content, { wide: true });
+    info.open(resultLabel(stage), content, { wide: true });
     return;
   }
   if (viewerBusy) return;
@@ -250,18 +252,15 @@ async function showResult(stage) {
       const firstPatch = stage === 'patch-qc' && Object.values(surfaceAnalysis?.flat_patches || {})[0];
       if (firstPatch) nv.setCrosshairPos(firstPatch.center_ras_mm);
     } else {
-      const registration = stage.includes('registration');
-      if (registration) await nv.loadVolumes([]);
-      else await nv.loadVolumes([{ url: source, name: source.name }]);
-      const meshFile = registration ? new File([file], `${file.name}.sphere`, { type: file.type }) : file;
-      await nv.loadMeshes([{ url: meshFile, name: file.name, color: meshColors[stage] }]);
-      nv.sliceType = registration ? SLICE_TYPE.RENDER : SLICE_TYPE.MULTIPLANAR;
-      $('imageLabel').textContent = (stageLabels[stage] || file.name).toUpperCase();
-      toolbar.setActive(registration ? 'render' : 'multiplanar');
+      await nv.loadVolumes([{ url: source, name: source.name }]);
+      await nv.loadMeshes([{ url: file, name: file.name }]);
+      nv.sliceType = SLICE_TYPE.MULTIPLANAR;
+      $('imageLabel').textContent = resultLabel(stage);
+      toolbar.setActive('multiplanar');
       const patch = surfaceAnalysis?.flat_patches?.[stage];
       if (patch) {
         nv.setCrosshairPos(patch.center_ras_mm);
-        $('imageLabel').textContent = `${stage} · ${patch.area_mm2.toFixed(1)} mm² · RMS ${patch.rms_distance_mm.toFixed(3)} mm`;
+        $('imageLabel').textContent = `${resultLabel(stage)} · ${patch.area_mm2.toFixed(1)} mm² · RMS ${patch.rms_distance_mm.toFixed(3)} mm`;
       }
     }
     nv.drawScene();
@@ -402,10 +401,13 @@ $('runButton').onclick = async () => {
     }
     if (data.type === 'result') {
       surfaceAnalysis = data.provenance.surfaceAnalysis;
-      for (const output of data.files) outputs.set(output.id, new File([output.bytes], output.name, { type: output.mediaType }));
+      for (const output of data.files) {
+        if (output.id.endsWith('-registration')) continue;
+        outputs.set(output.id, new File([output.bytes], output.name, { type: output.mediaType }));
+      }
       results.render(Object.fromEntries([...outputs].map(([id]) => [
         id,
-        surfaceStages.has(id) ? { visible: false } : {},
+        surfaceStages.has(id) ? { visible: false } : { description: resultLabel(id) },
       ])));
       $('outputSection').open = true;
       $('progress').value = 1;

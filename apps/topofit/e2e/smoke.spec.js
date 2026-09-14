@@ -158,11 +158,9 @@ test('surface checkboxes show multiple meshes and expose the X-ray control', asy
 
   const left = page.getByRole('checkbox', { name: 'Show Left white surface' });
   const right = page.getByRole('checkbox', { name: 'Show Right white surface' });
-  const registration = page.locator('.nd-volume-toggle').filter({ hasText: 'Left registration sphere' });
   const canvas = page.locator('#gl1');
   const hiddenSurface = await canvas.screenshot();
-  await expect(registration.getByRole('checkbox')).toHaveCount(0);
-  await expect(registration.getByRole('button', { name: 'View' })).toBeVisible();
+  await expect(page.locator('#resultList')).not.toContainText(/registration/i);
   await left.check();
   await expect(left).toBeEnabled();
   const visibleSurface = await canvas.screenshot();
@@ -189,11 +187,7 @@ test('surface checkboxes show multiple meshes and expose the X-ray control', asy
   await expect(page.locator('#meshXRayValue')).toHaveText('25%');
   await left.uncheck();
   await expect(page.locator('#imageLabel')).toHaveText('RIGHT WHITE SURFACE');
-  await registration.getByRole('button', { name: 'View' }).click();
-  await expect(registration.getByRole('button', { name: 'View' })).toBeEnabled();
-  await expect(right).not.toBeChecked();
-  await expect(page.locator('#imageLabel')).toHaveText('LEFT REGISTRATION SPHERE');
-  const registrationSurface = await canvas.screenshot();
+  const selectedSurface = await canvas.screenshot();
   await page.evaluate(() => {
     class PendingWorker {
       postMessage() {}
@@ -204,6 +198,6 @@ test('surface checkboxes show multiple meshes and expose the X-ray control', asy
   await page.locator('#runButton').click();
   await expect(page.locator('#imageLabel')).toHaveText('ORIGINAL IMAGE');
   await expect(page.locator('#resultList .nd-volume-toggle')).toHaveCount(0);
-  expect((await canvas.screenshot()).equals(registrationSurface)).toBe(false);
+  expect((await canvas.screenshot()).equals(selectedSurface)).toBe(false);
   await page.locator('#cancelButton').click();
 });
