@@ -16,6 +16,7 @@ test('Greedy releases require native and installed npm checks on every target', 
   assert.equal(flow.jobs['npm-test'].needs, 'npm');
   assert.deepEqual(flow.jobs.release.needs, ['macos-sign', 'npm-test']);
   assert.equal(flow.jobs['macos-sign'].needs, 'native');
+  assert.equal(flow.jobs['macos-sign'].permissions.contents, 'write', 'GitHub draft releases require push access even for lookup');
   assert.equal(flow.jobs['macos-sign'].if, flow.jobs.release.if);
   assert.deepEqual(flow.permissions, { contents: 'read' });
   assert.equal(flow.jobs.release.if, "github.event_name == 'workflow_dispatch' && inputs.sign_release");

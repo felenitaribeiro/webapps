@@ -2,6 +2,12 @@
 
 ## 0.2.20260914
 
+### Patch Changes
+
+- Allow the isolated Apple signing job to look up draft releases before notarization.
+  - @neurodesk/greedy@0.2.20260914
+
+
 ### Minor Changes
 
 - Add offline Greedy native packaging for Linux x64, Windows x64 and Apple ARM, with an isolated signed and notarized macOS installer release. Add an npm-installable CLI that bundles native binaries and validates installed packages on each target. Document the catalog-wide CLI rollout and remaining pipeline ports.
