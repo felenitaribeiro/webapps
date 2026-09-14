@@ -1,6 +1,7 @@
 import { runTopofit } from '@neurodesk/topofit';
 import { Tensor, browserRuntime, createBrowserSession } from '@neurodesk/topofit/browser';
 import manifest from '@neurodesk/topofit/manifest';
+import cortexAtlas from '@neurodesk/topofit/cortex-atlas-manifest';
 import { fetchModel } from '@neurodesk/webapp-components/worker';
 
 const progress = (value, message) => self.postMessage({ type: 'progress', value, message });
@@ -48,14 +49,23 @@ self.onmessage = async ({ data: job }) => {
       model: job.model,
       conform: job.conform,
       overlayThickness: job.overlayThickness,
+      estimateNormals: job.estimateNormals,
+      patches: job.patches,
+      roiBuffer: job.roiBuffer,
+      loadAtlas: async () => fetchModel({
+        url: cortexAtlas.url,
+        cacheKey: cortexAtlas.url,
+        integrity: cortexAtlas,
+      }, { cache: await cachePromise }),
       loadAsset: (name, from, to) => asset(name, from, to, job.assetBase),
       createSession: createBrowserSession,
       Tensor,
       onProgress: progress,
       runtime: {
-        app: 'TopoFit web 0.3.20260912',
+        app: 'TopoFit web 0.4.20260914',
         release: manifest.release,
         assets: Object.fromEntries(manifest.assets.map(({ filename, sha256 }) => [filename, sha256])),
+        ...(job.patches ? { cortexAtlasSha256: cortexAtlas.sha256 } : {}),
         ...browserRuntime(),
       },
     });

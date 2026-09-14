@@ -22,6 +22,9 @@ export class ConsoleOutput {
   log(message, level) {
     const text = message == null ? '' : String(message);
     const lvl = level ?? (this.deriveLevel ? this.deriveLevel(text) : 'info');
+    if (this.lastMessage === text && this.lastLevel === lvl && (!this.element || this.element.childElementCount > 0)) return;
+    this.lastMessage = text;
+    this.lastLevel = lvl;
     if (this.element) {
       if (lvl === 'error') {
         this.element.closest('[data-disclosure]')?.classList.remove('collapsed');
@@ -57,6 +60,8 @@ export class ConsoleOutput {
   }
 
   clear() {
+    this.lastMessage = undefined;
+    this.lastLevel = undefined;
     if (this.element) this.element.innerHTML = '';
   }
 

@@ -1,6 +1,8 @@
 import { estimateBrainAffine, multiply } from './affine.js';
 import { conformVolume } from './conform.js';
 import { createQcVolume } from './qc.js';
+import { analyzeSurfaces, readPatchRoi } from './surface-analysis.js';
+import { validatePatchOptions } from './patches.js';
 import { readFloat32Asset, readInt32Asset, writeFreeSurfer } from './results.js';
 import {
   applyAffine,
@@ -43,6 +45,8 @@ export async function runTopofit(options) {
   const inputSha256 = await sha256(buffer);
   onProgress(0.01, 'Reading input image…');
   const source = readVolume(buffer);
+  const patches = options.patches ? validatePatchOptions(options.patches) : null;
+  const roi = patches ? readPatchRoi(options.roiBuffer, source) : null;
   let inference = source;
   let conformed = false;
   if (conform) {
@@ -202,6 +206,18 @@ export async function runTopofit(options) {
       });
     }
   }
+  let analysis;
+  if (options.estimateNormals || patches) {
+    onProgress(0.94, 'Estimating cortical surface normals…');
+    const result = await analyzeSurfaces({
+      source, vertices, faces, roi, patches,
+      estimateNormals: options.estimateNormals,
+      loadAtlas: options.loadAtlas,
+      onProgress: (message) => onProgress(0.96, message),
+    });
+    files.push(...result.files);
+    analysis = result.analysis;
+  }
   const outputSha256 = Object.fromEntries(
     await Promise.all(files.map(async (file) => [file.name, await sha256(file.bytes)])),
   );
@@ -228,6 +244,8 @@ export async function runTopofit(options) {
     modelInputSha256,
     outputSha256,
     runtime,
+    ...(analysis ? { surfaceAnalysis: analysis } : {}),
+    ...(roi ? { roiSha256: await sha256(options.roiBuffer) } : {}),
   };
   files.push({
     id: 'provenance',

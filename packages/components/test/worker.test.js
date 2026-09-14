@@ -92,3 +92,18 @@ test('RAS input preparation preserves the native header and rewrites an owned co
   assert.equal(new DataView(prepared.headerBytes).getInt16(254, true), 1);
   assert.equal(new DataView(headerBytes).getInt16(254, true), 0);
 });
+
+test('model download progress reports changed percentages rather than network chunks', async () => {
+  const events = [];
+  let chunks = 0;
+  const bytes = await fetchModel({ url: '/model', integrity: { bytes: 1000 } }, {
+    fetch: async () => ({
+      ok: true,
+      body: { getReader: () => ({ read: async () => chunks++ < 1000 ? { done: false, value: new Uint8Array([1]) } : { done: true } }) },
+    }),
+    onProgress: (event) => events.push(event),
+  });
+  assert.equal(bytes.byteLength, 1000);
+  assert.equal(events.length, 101);
+  assert.equal(events.at(-1).fraction, 1);
+});

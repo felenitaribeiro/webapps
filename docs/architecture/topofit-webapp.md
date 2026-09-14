@@ -131,7 +131,7 @@ The controlled `ds000001` comparison passed with 0.052–0.062 mm mean correspon
 
 - The CPU WebAssembly executor is slower than a future custom WebGPU executor, but it keeps the first implementation portable, local, and directly tied to validated ONNX graphs.
 - Fixed model shapes and topology make the runtime narrower and auditable. Only the validated T1-weighted preset is exposed; the exported synthetic-contrast graphs remain unavailable until they receive their own browser/container report.
-- Optional flat-patch and sulcal-middepth analyses are outside the first reconstruction release. They are not claimed through surface parity and require their own tests before being added.
+- Optional mid-surface normals and flat-patch analysis run after reconstruction. Their separate OpenRecon comparison checks normals, atlas eligibility, exact selected vertices and plane-fit metrics on both full-resolution hemispheres. Sulcal-middepth analysis remains outside this release.
 - Full order-6 reconstruction requires a desktop browser with WebAssembly threads and sufficient memory. Unsupported hardware receives a clear error; it does not receive a lower-quality result under the same name.
 
 ## First gate

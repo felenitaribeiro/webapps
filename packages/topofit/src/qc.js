@@ -58,7 +58,7 @@ function surfaceMask(volume, vertexSets, thickness) {
   return mask;
 }
 
-function writeInt16Nifti(volume, data, description) {
+export function writeInt16Nifti(volume, data, description) {
   const output = new ArrayBuffer(352 + data.length * 2);
   const bytes = new Uint8Array(output);
   bytes.set(new Uint8Array(volume.source, 0, Math.min(348, volume.source.byteLength)));
@@ -85,7 +85,7 @@ function percentile(sorted, probability) {
   return sorted[lower] + fraction * (sorted[Math.min(sorted.length - 1, lower + 1)] - sorted[lower]);
 }
 
-function roundEven(value) {
+export function roundEven(value) {
   const lower = Math.floor(value);
   const fraction = value - lower;
   if (fraction < 0.5) return lower;

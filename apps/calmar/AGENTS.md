@@ -48,6 +48,8 @@ Common issues it catches:
 
 ## Key Conventions
 
+- Consecutive identical log messages with the same level and source appear once. Clear resets this state; a changed level or source is a new entry.
+
 - The inference worker is a **module worker** (`type: 'module'`); load nifti-reader-js lazily inside the message handler (`niftiReady` promise) — top-level `await import(...)` causes Chromium to drop the first messages.
 - Visible project branding is app name `CALMaR` with tagline `Co-designed Automated Lesion Mapping and Reporting`. Keep existing internal `lnm-*` ids, protocol headers, and filenames stable for compatibility unless a task explicitly asks to migrate them.
 - The start page is a first-run explanation layer, not a separate marketing site. It must keep a clear `Start analysis` path into the existing workspace, explain the three-step workflow, and state that patient-derived data stays local while public atlas/model assets may be fetched.

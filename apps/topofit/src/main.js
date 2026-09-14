@@ -38,6 +38,7 @@ let outputs = new Map();
 let importedImages = [];
 let timer;
 let started;
+let surfaceAnalysis;
 
 const toolbar = renderViewerToolbar({
   window: false,
@@ -71,6 +72,11 @@ const results = new StageResultList({
     'lh-registration': 'Left registration sphere',
     'rh-registration': 'Right registration sphere',
     provenance: 'Processing manifest',
+    'lh-normals': 'Left mid-surface normals',
+    'rh-normals': 'Right mid-surface normals',
+    'patch-qc': 'Cortical patches and normals',
+    'patch-geometry': 'Paired patch geometry and local normals',
+    'surface-analysis': 'Surface analysis measurements',
   },
   onView: (stage) => void showResult(stage),
   onDownload: (stage) => {
@@ -87,7 +93,8 @@ function status(message, error = false) {
 
 function setBusy(value) {
   busy = value;
-  for (const id of ['imageInput', 'seriesSelect', 'exampleButton', 'model', 'conform', 'thickness']) $(id).disabled = value;
+  for (const input of $('controls').querySelectorAll('input, select')) input.disabled = value;
+  $('exampleButton').disabled = value;
   $('runButton').disabled = value || !source;
   $('cancelButton').hidden = !value;
   if (!value) clearInterval(timer);
@@ -121,29 +128,39 @@ async function showSource() {
 async function showResult(stage) {
   const file = outputs.get(stage);
   if (!file) return;
-  if (stage === 'provenance') {
+  if (file.type === 'application/json' || file.type === 'text/csv') {
     const content = document.createElement('pre');
     content.className = 'nd-console-output';
-    content.textContent = await file.text();
-    info.open('Processing manifest', content, { wide: true });
+    const text = await file.text();
+    content.textContent = text.length > 16000 ? `${text.slice(0, 16000)}\n\nPreview truncated. Download the complete file.` : file.type === 'application/json' ? JSON.stringify(JSON.parse(text), null, 2) : text;
+    info.open(results.stageLabels[stage] || file.name, content, { wide: true });
     return;
   }
   try {
     const nv = await ensureViewer();
     for (const mesh of [...nv.meshes]) nv.removeMesh(mesh);
-    if (stage === 'qc') {
-      await nv.loadVolumes([{ url: source, name: source.name }, { url: file, name: file.name, opacity: 0.75 }]);
+    if (stage === 'qc' || stage === 'patch-qc') {
+      const overlay = stage === 'patch-qc' ? { colormap: 'hot', calMin: 1, calMax: 4095, isTransparentBelowCalMin: true } : {};
+      await nv.loadVolumes([{ url: source, name: source.name }, { url: file, name: file.name, opacity: 0.75, ...overlay }]);
       nv.sliceType = SLICE_TYPE.MULTIPLANAR;
-      $('imageLabel').textContent = 'ORIGINAL IMAGE · TOPOFIT QC';
+      $('imageLabel').textContent = stage === 'patch-qc' ? 'PATCHES · WHITE 2400 · PIAL 2700 · MID 3000 · NORMAL 4095' : 'ORIGINAL IMAGE · TOPOFIT QC';
       toolbar.setActive('multiplanar');
+      const firstPatch = stage === 'patch-qc' && Object.values(surfaceAnalysis?.flat_patches || {})[0];
+      if (firstPatch) nv.setCrosshairPos(firstPatch.center_ras_mm);
     } else {
       const registration = stage.includes('registration');
       if (registration) await nv.loadVolumes([]);
       else await nv.loadVolumes([{ url: source, name: source.name }]);
-      await nv.loadMeshes([{ url: file, name: file.name }]);
-      nv.sliceType = SLICE_TYPE.RENDER;
+      const meshFile = registration ? new File([file], `${file.name}.sphere`, { type: file.type }) : file;
+      await nv.loadMeshes([{ url: meshFile, name: file.name }]);
+      nv.sliceType = registration ? SLICE_TYPE.RENDER : SLICE_TYPE.MULTIPLANAR;
       $('imageLabel').textContent = file.name.toUpperCase();
-      toolbar.setActive('render');
+      toolbar.setActive(registration ? 'render' : 'multiplanar');
+      const patch = surfaceAnalysis?.flat_patches?.[stage];
+      if (patch) {
+        nv.setCrosshairPos(patch.center_ras_mm);
+        $('imageLabel').textContent = `${stage} · ${patch.area_mm2.toFixed(1)} mm² · RMS ${patch.rms_distance_mm.toFixed(3)} mm`;
+      }
     }
     nv.drawScene();
     $('viewerError').hidden = true;
@@ -221,8 +238,34 @@ $('exampleButton').onclick = async () => {
   }
 };
 
-$('runButton').onclick = () => {
+$('findPatches').onchange = () => { $('patchSettings').hidden = !$('findPatches').checked; };
+$('patchRegion').onchange = () => { $('patchRoiField').hidden = $('patchRegion').value !== 'roi'; };
+
+$('runButton').onclick = async () => {
   if (!source || busy) return;
+  if ($('findPatches').checked) {
+    const invalid = [...$('surfaceAnalysisSettings').querySelectorAll('input[type="number"]')].find((input) => !input.checkValidity());
+    if (invalid) {
+      for (let section = invalid.closest('details'); section; section = section.parentElement.closest('details')) section.open = true;
+      invalid.reportValidity();
+      return;
+    }
+  }
+  let roiBuffer;
+  if ($('findPatches').checked && $('patchRegion').value === 'roi') {
+    setBusy(true);
+    try {
+      const images = await readImageFiles(Array.from($('patchRoi').files));
+      if (images.length !== 1) throw new Error('Choose one ROI mask on the input image grid.');
+      roiBuffer = await images[0].arrayBuffer();
+    } catch (error) {
+      $('surfaceAnalysisSettings').open = true;
+      $('patchQuality').open = true;
+      status(error.message, true);
+      setBusy(false);
+      return;
+    }
+  }
   outputs = new Map();
   setBusy(true);
   $('progress').value = 0;
@@ -245,6 +288,7 @@ $('runButton').onclick = () => {
       status(data.message, true);
     }
     if (data.type === 'result') {
+      surfaceAnalysis = data.provenance.surfaceAnalysis;
       for (const output of data.files) outputs.set(output.id, new File([output.bytes], output.name, { type: output.mediaType }));
       results.render(Object.fromEntries([...outputs].map(([id]) => [id, {}])));
       $('outputSection').open = true;
@@ -253,7 +297,8 @@ $('runButton').onclick = () => {
       worker = null;
       setBusy(false);
       status(`Surfaces ready · ${data.provenance.surfaceVertices.toLocaleString()} vertices per hemisphere · ${Math.round(data.elapsedSeconds)} s`);
-      await showResult('qc');
+      if (surfaceAnalysis?.flat_patch_status === 'NO_PATCH_MEETS_CRITERIA') status('Surfaces ready · no cortical patch meets the selected criteria');
+      await showResult(outputs.has('patch-qc') ? 'patch-qc' : 'qc');
     }
   };
   worker.onerror = (event) => {
@@ -267,6 +312,15 @@ $('runButton').onclick = () => {
     model: $('model').value,
     conform: $('conform').checked,
     overlayThickness: Number($('thickness').value),
+    estimateNormals: $('estimateNormals').checked,
+    patches: $('findPatches').checked ? {
+      count: Number($('patchCount').value),
+      radius: Number($('patchRadius').value),
+      hemisphere: $('patchHemisphere').value,
+      maxRms: Number($('patchMaxRms').value),
+      minAreaFraction: Number($('patchMinArea').value),
+    } : null,
+    roiBuffer,
     assetBase,
   });
 };

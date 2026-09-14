@@ -1,5 +1,13 @@
 # greedy
 
+## 0.1.20260914
+
+### Patch Changes
+
+- Updated dependencies
+  - @neurodesk/webapp-components@0.1.4
+  - @neurodesk/greedy@0.1.20260914
+
 ## 0.1.20260911
 
 ### Patch Changes
@@ -10,7 +18,6 @@
 
 - Updated dependencies [dc50e56]
   - @neurodesk/greedy@0.1.20260911
-
 
 ### Patch Changes
 

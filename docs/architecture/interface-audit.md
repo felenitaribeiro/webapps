@@ -83,3 +83,27 @@ hold the busy state while clearing results, and cancellation closes only the
 worker belonging to that run. Real DICOM checks cover extensionless slices,
 multiple converted series and selecting the second series in both apps. Browser
 checks also exercise registration, downloaded NIfTI results and shell dialogs.
+
+## TopoFit surface analysis and shared logging, 14 September 2026
+
+TopoFit keeps anatomical surfaces in 3-Plane view and loads registration files
+through NiiVue's FreeSurfer reader. Surface analysis is optional and collapsed.
+Patch count, radius, hemisphere, quality thresholds and native-grid ROI settings
+survive disclosure changes. Invalid settings reopen their section. The sidebar
+omits the repeated warning and single-option contrast selector.
+
+The shared console suppresses consecutive identical messages without suppressing
+changed levels or later workflow stages. QSMbly uses that console; CALMaR applies
+the same rule while retaining its level and source fields. Model downloads emit
+changed percentages. The shared section grid lets long result labels shrink so
+View and Download remain inside the sidebar.
+
+TopoFit's 12 browser checks include the six surface products, parameter transfer,
+invalid inputs, computed normals downloads, and the real full-resolution reference
+surfaces with six selected patches. Desktop and phone screenshots were reviewed
+in dark and light themes. Real patch QC opens at the first selected patch; a patch
+row centers the viewer on its measured RAS location. The separate scientific
+comparison is recorded in `packages/topofit/validation/surface-analysis.md`.
+
+The fresh 22-app production build passed `pnpm audit:interfaces`,
+`pnpm test:mobile`, `pnpm test:interface-workflows` and `pnpm test:image-uploads`.
