@@ -4,6 +4,17 @@
 
 ### Patch Changes
 
+- 3cd773f: Greedy and EdgeReg show all three viewer panels on phones. TopoFit conforms axis-aligned and oblique scans through the pinned npm niimath WebAssembly worker. SYNcro now matches the native three-input workflow, offers four checksum-pinned tutorials, defaults to MindGrab and Greedy with SynthStrip and ANTs alternatives, uses niimath for lesion and masking operations, and switches one NiiVue viewer between images with automatic lesion overlays. SynthSR lets adapter limits govern its largest activation buffer, so validated 256×256×192 scans and larger volumes on capable GPUs are attempted while other shared U-Net callers retain their existing limit. Add the standalone ANTS registration demo.
+- Updated dependencies [3cd773f]
+- Updated dependencies [4add8da]
+  - @neurodesk/greedy@0.1.20260914
+  - @neurodesk/webapp-components@0.1.5
+  - @neurodesk/runtime-support@0.1.2
+  - @neurodesk/synthsr@0.3.20260914
+
+
+### Patch Changes
+
 - Updated dependencies
   - @neurodesk/webapp-components@0.1.4
   - @neurodesk/synthsr@0.3.20260914

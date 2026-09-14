@@ -2,6 +2,17 @@
 
 ## 0.5.20260914
 
+### Patch Changes
+
+- 3cd773f: Greedy and EdgeReg show all three viewer panels on phones. TopoFit conforms axis-aligned and oblique scans through the pinned npm niimath WebAssembly worker. SYNcro now matches the native three-input workflow, offers four checksum-pinned tutorials, defaults to MindGrab and Greedy with SynthStrip and ANTs alternatives, uses niimath for lesion and masking operations, and switches one NiiVue viewer between images with automatic lesion overlays. SynthSR lets adapter limits govern its largest activation buffer, so validated 256×256×192 scans and larger volumes on capable GPUs are attempted while other shared U-Net callers retain their existing limit. Add the standalone ANTS registration demo.
+- 4add8da: Let TopoFit users show multiple cortical meshes together and reveal them inside the 3D volume with an adjustable X-ray control.
+- Updated dependencies [3cd773f]
+- Updated dependencies [4add8da]
+  - @neurodesk/topofit@0.5.20260914
+  - @neurodesk/webapp-components@0.1.5
+  - @neurodesk/runtime-support@0.1.2
+
+
 ### Minor Changes
 
 - Remove registration spheres from the browser output list and label cortical patches by side and number, such as "Left flat patch 1". Clip meshes to the current slice so scrolling away from a patch does not project it onto unrelated anatomy. Remove the motion-clearance and prescription wording from the application, processing manifest and QC image header.

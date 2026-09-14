@@ -88,7 +88,7 @@ export function renderLandingPage(registry) {
       <div class="hero__copy">
         <p class="eyebrow">Neurodesk Webapps</p>
         <h1 id="page-title">Run Neuroimaging Tools in Your Browser</h1>
-        <p class="hero__lede">Use practical tools for segmentation, quantitative imaging, quality control, and data preparation—without installing software or uploading your imaging data.</p>
+        <p class="hero__lede">Segment, register, measure, prepare, and explore imaging data in your browser without installing software or uploading your scans.</p>
       </div>
       <aside class="privacy-card" aria-label="Privacy information">
         <div class="privacy-card__icon" aria-hidden="true">

@@ -4,6 +4,15 @@
 
 ### Patch Changes
 
+- Updated dependencies [3cd773f]
+- Updated dependencies [4add8da]
+  - @neurodesk/webapp-components@0.1.5
+  - @neurodesk/runtime-support@0.1.2
+  - @neurodesk/synthseg@0.2.20260914
+
+
+### Patch Changes
+
 - Updated dependencies
   - @neurodesk/webapp-components@0.1.4
   - @neurodesk/synthseg@0.2.20260914

@@ -13,12 +13,18 @@ site:
     - id: quantitative-imaging
       title: Quantitative Imaging
       description: Create maps, derived images, and reproducible quantitative results.
+    - id: registration
+      title: Registration
+      description: Align images with each other or normalize scans to a reference space.
     - id: data-preparation
       title: Data Preparation & Privacy
-      description: Convert, compare, and prepare imaging data safely in your browser.
-    - id: quality-annotation
-      title: Quality Control & Annotation
-      description: Review image quality and annotate anatomy with interactive tools.
+      description: Convert images, improve resolution, and remove identifying facial features.
+    - id: visualization-surfaces
+      title: Visualization & Surfaces
+      description: Explore volumes, reconstruct and annotate surfaces, and create printable meshes.
+    - id: quality-control
+      title: Quality Control
+      description: Check image quality and compare acquisition protocols.
 
 apps:
   - id: musclemap
@@ -151,7 +157,7 @@ apps:
     path: dicompare
     title: dicompare
     description: DICOM protocol comparison, validation, and schema tooling.
-    category: data-preparation
+    category: quality-control
     keywords: [DICOM, protocol, comparison, validation, schema, metadata]
     legacy_domain: dicompare.neurodesk.org
     runtime: react-vite
@@ -248,7 +254,7 @@ apps:
     path: browserqc
     title: BrowserQC
     description: Automated browser-native MRI segmentation and image-quality metrics.
-    category: quality-annotation
+    category: quality-control
     keywords: [quality control, QC, MRI, segmentation, metrics, review]
     legacy_domain: neurolabusc.github.io/BrowserQC
     runtime: vite-webgpu
@@ -268,7 +274,7 @@ apps:
     path: surfannotate
     title: SurfAnnotate
     description: Cortical surface viewer with manual ROI delineation and vertex selection.
-    category: quality-annotation
+    category: visualization-surfaces
     keywords: [cortical surface, annotation, ROI, mesh, vertex, FreeSurfer]
     legacy_domain: null
     runtime: vite-webgpu
@@ -288,7 +294,7 @@ apps:
     path: zarro
     title: ZARRo
     description: Stream and explore multiscale OME-Zarr volumes directly in the browser.
-    category: quality-annotation
+    category: visualization-surfaces
     keywords: [OME-Zarr, Zarr, microscopy, DANDI, multiscale, volume, visualization, measurement]
     legacy_domain: null
     runtime: vite-webgpu
@@ -314,10 +320,10 @@ apps:
     runtime: vite-webgpu
     model_manifest: models/synthsr.manifest.json
     asset_manifest_schema: scientific-assets-v1
-    source: neurodesk/webapps@local
+    source: neurodesk/webapps@7b2754ae1958356ea688015d4514958e450144b3
     license: Apache-2.0
     maintainers: [neurodesk]
-    support_status: experimental
+    support_status: active
     shell: imaging-workspace
     app_scoped_runtime_families: [ort-web-asyncify]
     ci:
@@ -336,10 +342,10 @@ apps:
     runtime: vite-webgpu
     model_manifest: models/synthseg.manifest.json
     asset_manifest_schema: scientific-assets-v1
-    source: neurodesk/webapps@local
+    source: neurodesk/webapps@7b2754ae1958356ea688015d4514958e450144b3
     license: Apache-2.0
     maintainers: [neurodesk]
-    support_status: experimental
+    support_status: active
     shell: imaging-workspace
     app_scoped_runtime_families: []
     ci:
@@ -351,16 +357,16 @@ apps:
     path: syncro
     title: SYNcro
     description: Normalize brain scans and aligned lesion maps to MNI space.
-    category: data-preparation
+    category: registration
     keywords: [SYNcro, SynthSR, MindGrab, Brainchop, SynthStrip, ANTs, MNI, registration]
     legacy_domain: null
     runtime: vite-webgpu
     model_manifest: models/syncro.manifest.json
     asset_manifest_schema: scientific-assets-v1
-    source: neurodesk/webapps@local
+    source: neurodesk/webapps@7b2754ae1958356ea688015d4514958e450144b3
     license: Apache-2.0
     maintainers: [neurodesk]
-    support_status: experimental
+    support_status: active
     shell: imaging-workspace
     app_scoped_runtime_families: [ort-web-asyncify]
     ci:
@@ -378,10 +384,10 @@ apps:
     runtime: vite-webgpu
     model_manifest: null
     asset_manifest_schema: null
-    source: neurodesk/webapps@local
+    source: neurodesk/webapps@7b2754ae1958356ea688015d4514958e450144b3
     license: NOASSERTION
     maintainers: [neurodesk]
-    support_status: experimental
+    support_status: active
     shell: imaging-workspace
     ci:
       toolchains: [node]
@@ -392,16 +398,16 @@ apps:
     path: edgereg
     title: EdgeReg
     description: Affine MRI registration in the browser with niimath.
-    category: data-preparation
+    category: registration
     keywords: [registration, affine, NIfTI, niimath, NiiVue]
     legacy_domain: null
     runtime: vite-webgpu
     model_manifest: null
     asset_manifest_schema: null
-    source: neurodesk/webapps@local
+    source: neurodesk/webapps@7b2754ae1958356ea688015d4514958e450144b3
     license: BSD-2-Clause
     maintainers: [neurodesk]
-    support_status: experimental
+    support_status: active
     shell: imaging-workspace
     ci:
       toolchains: [node]
@@ -412,16 +418,16 @@ apps:
     path: greedy
     title: Greedy
     description: Affine and deformable MRI registration in the browser with Greedy.
-    category: data-preparation
+    category: registration
     keywords: [registration, affine, deformable, NIfTI, Greedy]
     legacy_domain: null
     runtime: vite-webgpu
     model_manifest: null
     asset_manifest_schema: null
-    source: neurodesk/webapps@local
+    source: neurodesk/webapps@7b2754ae1958356ea688015d4514958e450144b3
     license: Apache-2.0
     maintainers: [neurodesk]
-    support_status: experimental
+    support_status: active
     shell: imaging-workspace
     ci:
       toolchains: [node, rust-wasm]
@@ -432,16 +438,16 @@ apps:
     path: ants
     title: ANTs
     description: Affine and SyN diffeomorphic MRI registration in the browser with ANTs.
-    category: data-preparation
+    category: registration
     keywords: [registration, SyN, diffeomorphic, affine, NIfTI, ANTs]
     legacy_domain: null
     runtime: vite-webgpu
     model_manifest: null
     asset_manifest_schema: null
-    source: neurodesk/webapps@local
+    source: neurodesk/webapps@7b2754ae1958356ea688015d4514958e450144b3
     license: Apache-2.0
     maintainers: [neurodesk]
-    support_status: experimental
+    support_status: active
     shell: imaging-workspace
     ci:
       toolchains: [node]
@@ -452,16 +458,16 @@ apps:
     path: brain2print
     title: Brain2Print
     description: Create printable brain meshes from NIfTI or DICOM scans in your browser.
-    category: data-preparation
+    category: visualization-surfaces
     keywords: [brain, mri, segmentation, mesh, 3d-printing]
     legacy_domain: null
     runtime: vite-webgpu
     model_manifest: null
     asset_manifest_schema: null
-    source: neurodesk/webapps@local
+    source: neurodesk/webapps@7b2754ae1958356ea688015d4514958e450144b3
     license: NOASSERTION
     maintainers: [neurodesk]
-    support_status: experimental
+    support_status: active
     shell: imaging-workspace
     ci:
       toolchains: [node]
@@ -472,7 +478,7 @@ apps:
     path: topofit
     title: TopoFit
     description: Reconstruct cortical white, pial, and registration surfaces locally from a brain MRI.
-    category: segmentation-analysis
+    category: visualization-surfaces
     keywords: [TopoFit, cortical surface, MRI, FreeSurfer, BrainNet, ONNX]
     legacy_domain: null
     runtime: vite-wasm
@@ -481,7 +487,7 @@ apps:
     source: neurodesk/neurocontainers@1c960cec82947541d270e06099ab415933c9ea07
     license: GPL-3.0-only
     maintainers: [neurodesk]
-    support_status: experimental
+    support_status: active
     shell: imaging-workspace
     app_scoped_runtime_families: [ort-web-asyncify, dcm2niix]
     ci:
@@ -493,16 +499,16 @@ apps:
     path: fireants
     title: FireANTs
     description: Register brain images in the browser with CPU or WebGPU FireANTs.
-    category: data-preparation
+    category: registration
     keywords: [FireANTs, registration, SyN, greedy, WebGPU, MRI, NIfTI]
     legacy_domain: null
     runtime: vite-webgpu
     model_manifest: null
     asset_manifest_schema: null
-    source: neurodesk/webapps@local
+    source: neurodesk/webapps@7b2754ae1958356ea688015d4514958e450144b3
     license: Apache-2.0
     maintainers: [neurodesk]
-    support_status: experimental
+    support_status: active
     shell: imaging-workspace
     ci:
       toolchains: [node]
