@@ -34,8 +34,12 @@ test('loads GA4 exactly once and configures only an automatic page view', () => 
   assert.equal(browser.scripts.length, 1);
   assert.equal(browser.scripts[0].src, 'https://www.googletagmanager.com/gtag/js?id=G-4Z9774J59Y');
   assert.equal(browser.window.dataLayer.length, 2);
+  for (const command of browser.window.dataLayer) {
+    assert.equal(Object.prototype.toString.call(command), '[object Arguments]',
+      'gtag commands must use arguments objects; Google ignores array commands');
+  }
   assert.equal(browser.window.dataLayer[0][0], 'js');
-  assert.deepEqual(browser.window.dataLayer[1], ['config', 'G-4Z9774J59Y', {
+  assert.deepEqual(Array.from(browser.window.dataLayer[1]), ['config', 'G-4Z9774J59Y', {
     send_page_view: true,
     allow_google_signals: false,
     allow_ad_personalization_signals: false,

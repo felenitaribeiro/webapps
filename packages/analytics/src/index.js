@@ -35,7 +35,9 @@ export function initAnalytics(measurementId, environment = {}) {
   }
 
   windowObject.dataLayer = windowObject.dataLayer || [];
-  const gtag = (...args) => windowObject.dataLayer.push(args);
+  function gtag() {
+    windowObject.dataLayer.push(arguments);
+  }
   gtag('js', new Date());
   gtag('config', measurementId, {
     send_page_view: true,
