@@ -25,3 +25,13 @@ cortical surface is visible and defaults to 10%. Registration spheres use a
 different dilated coordinate space, so they remain separate View actions and
 are displayed without the anatomical volume. DICOM import uses the shared
 dcm2niix worker. Images and results are not uploaded to a processing service.
+
+Open **Surface analysis** before reconstruction to export mid-surface normals
+or find flat cortical patches. Patch radius, count and hemisphere are available
+when the search is enabled; quality thresholds and a native-grid ROI are under
+**Patch quality and region**. Closing a section preserves its settings.
+
+Results include individual patch surfaces, patch-and-normal QC, measurements
+and paired ribbon geometry. Select a patch to center the 3-Plane viewer on it.
+Download the normals CSV or geometry JSON for local analysis. The output schema
+and OpenRecon comparison command are documented in `packages/topofit/README.md`.

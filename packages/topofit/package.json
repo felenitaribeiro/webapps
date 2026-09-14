@@ -1,6 +1,6 @@
 {
   "name": "@neurodesk/topofit",
-  "version": "0.3.20260912",
+  "version": "0.4.20260914",
   "description": "BrainNet TopoFit cortical surface reconstruction for browsers",
   "type": "module",
   "license": "GPL-3.0-only",
@@ -10,11 +10,13 @@
   "exports": {
     ".": "./src/index.js",
     "./browser": "./src/browser.js",
-    "./manifest": "./model.manifest.json"
+    "./manifest": "./model.manifest.json",
+    "./cortex-atlas-manifest": "./cortex-atlas.manifest.json"
   },
   "files": [
     "src",
     "model.manifest.json",
+    "cortex-atlas.manifest.json",
     "LICENSE",
     "NOTICE",
     "README.md"

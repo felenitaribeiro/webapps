@@ -24,6 +24,9 @@ export class CalmarConsoleOutput {
 
   log(text, options = {}) {
     const outputElement = document.getElementById(this.outputElementId);
+    const entry = JSON.stringify([String(text), options.level || 'info', options.source || '']);
+    if (entry === this.lastEntry && (!outputElement || outputElement.childElementCount > 0)) return;
+    this.lastEntry = entry;
     if (outputElement) {
       const time = new Date().toLocaleTimeString('en-US', { hour12: false });
       const line = document.createElement('div');
@@ -92,6 +95,7 @@ export class CalmarConsoleOutput {
   }
 
   clear() {
+    this.lastEntry = undefined;
     const outputElement = document.getElementById(this.outputElementId);
     if (outputElement) {
       outputElement.innerHTML = '';

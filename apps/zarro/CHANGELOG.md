@@ -1,5 +1,12 @@
 # zarro
 
+## 0.2.20260914
+
+### Patch Changes
+
+- Updated dependencies
+  - @neurodesk/webapp-components@0.1.4
+
 ## 0.2.20260910
 
 ### Minor Changes

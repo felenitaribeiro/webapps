@@ -294,6 +294,7 @@ nd-imaging-brand {
    Grid ignores display:none children, so hidden controls leave no gaps. */
 .nd-imaging-controls .nd-section-content {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--nd-space-sm);
   align-content: start;
 }

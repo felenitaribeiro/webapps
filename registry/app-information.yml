@@ -853,12 +853,18 @@ apps:
 
   topofit:
     packages:
+      - { name: OpenRecon TopoFit, url: https://github.com/neurodesk/neurocontainers/tree/main/recipes/topofit, role: cortical patch search and local surface normals }
+      - { name: FreeSurfer, url: https://surfer.nmr.mgh.harvard.edu/, role: fsaverage cortical eligibility atlas }
       - { name: BrainNet, url: https://github.com/simnibs/brainnet, role: TopoFit and TReGA pretrained models }
       - { name: ONNX Runtime Web, url: https://onnxruntime.ai/docs/get-started/with-javascript/web.html, role: local model inference }
       - { name: NiiVue, url: https://github.com/niivue/niivue, role: image viewer }
       - { name: niimath, url: https://github.com/rordenlab/niimath, role: 1 mm RAS conforming }
       - { name: dcm2niix, url: https://github.com/rordenlab/dcm2niix, role: DICOM to NIfTI conversion }
     citations:
+      - group: Cortical ribbon geometry
+        title: Surface-based cortical diffusion analysis
+        reference: "McNab JA, Polimeni JR, Wang R, et al. Surface based analysis of diffusion orientation for identifying architectonic domains in the in vivo human cortex. NeuroImage. 2013;69:87-100. Structural geometry only; diffusion analysis is not implemented."
+        doi: 10.1016/j.neuroimage.2012.11.065
       - group: Cortical surface reconstruction
         title: BrainNet
         reference: "Nielsen JD, Hoopes A, Iglesias JE, et al. BrainNet: Deep learning for cortical surface reconstruction. arXiv. 2025."

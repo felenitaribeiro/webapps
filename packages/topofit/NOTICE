@@ -5,3 +5,11 @@ GPL-3.0-only
 
 The validation reference is generated with the Neurodesk OpenRecon TopoFit
 0.5.1 container. The OpenNeuro ds000001 input is distributed under PDDL 1.0.
+
+Cortical patch geometry and normal estimation are adapted from Neurodesk's
+OpenRecon TopoFit recipe:
+https://github.com/neurodesk/neurocontainers/tree/main/recipes/topofit
+The fsaverage sphere and cortex labels are distributed separately on Hugging
+Face. Original asset checksums and sources are in cortex-atlas.manifest.json.
+FreeSurfer software license and attribution:
+https://surfer.nmr.mgh.harvard.edu/fswiki/FreeSurferSoftwareLicense

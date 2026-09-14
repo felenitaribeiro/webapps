@@ -1,0 +1,21 @@
+{
+  "filename": "fsaverage-cortex.bin",
+  "bytes": 2293792,
+  "sha256": "d41c2d67fd69afb8987fd922074d4194f346131a23b60fe644a87113f4cf2bd3",
+  "sources": {
+    "sphere.reg": [
+      "surf/lh.sphere.reg",
+      "fddcf0eeecc6e0f62142164f7c0ac24fda1f0be8cb653d3f037970184c5ba98f"
+    ],
+    "lh.cortex.label": [
+      "label/lh.cortex.label",
+      "e08216c1a840f0c192ac63c212fbbe12efc7e9731faa64a45083a098746b928a"
+    ],
+    "rh.cortex.label": [
+      "label/rh.cortex.label",
+      "432e9ce95e095c066dae2ed2fb3e6c0c67af6e77d8f52ba2d3b560b4fc50b87f"
+    ]
+  },
+  "url": "https://huggingface.co/datasets/neurodeskorg/webapps/resolve/1c3a4b2c508b01171540e3870272d39f66b04004/topofit/0.5.1/surface-analysis-20260914/fsaverage-cortex.bin",
+  "revision": "1c3a4b2c508b01171540e3870272d39f66b04004"
+}

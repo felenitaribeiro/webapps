@@ -29,12 +29,7 @@
       <details class="nd-sidebar-section" id="taskSection" open>
         <summary class="nd-section-title">Surface reconstruction</summary>
         <div class="nd-section-content">
-          <div class="nd-field">
-            <label for="model">Image contrast</label>
-            <select id="model">
-              <option value="t1w-1mm">T1-weighted · 1 mm</option>
-            </select>
-          </div>
+          <input id="model" type="hidden" value="t1w-1mm">
           <details class="nd-sidebar-section" id="advancedSettings">
             <summary class="nd-section-title">Advanced settings</summary>
             <div class="nd-section-content">
@@ -45,7 +40,51 @@
               </div>
             </div>
           </details>
-          <p class="nd-hint">Research only. Outputs are not motion-cleared and must not be used for prescription.</p>
+          <details class="nd-sidebar-section" id="surfaceAnalysisSettings">
+            <summary class="nd-section-title">Surface analysis</summary>
+            <div class="nd-section-content">
+              <label class="nd-check"><input id="estimateNormals" type="checkbox"> Export mid-surface normals</label>
+              <label class="nd-check"><input id="findPatches" type="checkbox"> Find flat cortical patches</label>
+              <div id="patchSettings" hidden>
+                <div class="nd-field">
+                  <label for="patchCount">Maximum patches per hemisphere</label>
+                  <input id="patchCount" type="number" min="1" max="10" step="1" value="3">
+                </div>
+                <div class="nd-field">
+                  <label for="patchRadius">Patch radius <small>mm</small></label>
+                  <input id="patchRadius" type="number" min="5" max="20" step="1" value="10">
+                </div>
+                <div class="nd-field">
+                  <label for="patchHemisphere">Hemisphere</label>
+                  <select id="patchHemisphere"><option value="both">Both</option><option value="lh">Left</option><option value="rh">Right</option></select>
+                </div>
+                <details class="nd-sidebar-section" id="patchQuality">
+                  <summary class="nd-section-title">Patch quality and region</summary>
+                  <div class="nd-section-content">
+                    <div class="nd-field">
+                      <label for="patchMaxRms">Maximum plane-fit RMS <small>mm</small></label>
+                      <input id="patchMaxRms" type="number" min="0.01" max="2" step="0.01" value="0.5">
+                    </div>
+                    <div class="nd-field">
+                      <label for="patchMinArea">Minimum area fraction</label>
+                      <input id="patchMinArea" type="number" min="0.1" max="1" step="0.05" value="0.25">
+                    </div>
+                    <div class="nd-field">
+                      <label for="patchRegion">Search region</label>
+                      <select id="patchRegion"><option value="cortex">Whole eligible cortex</option><option value="roi">ROI mask</option></select>
+                    </div>
+                    <div class="nd-field" id="patchRoiField" hidden>
+                      <label class="nd-file" for="patchRoi">
+                        <input id="patchRoi" type="file" data-neurodesk-input="image" multiple aria-label="ROI on the input image grid">
+                        <span>Choose a native-grid ROI mask</span>
+                      </label>
+                      <p class="nd-hint">Positive voxels select cortex. Shape and affine must match the scan.</p>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            </div>
+          </details>
           <button id="runButton" class="nd-btn nd-btn-primary" type="button" disabled>Reconstruct cortex</button>
         </div>
       </details>
@@ -73,6 +112,8 @@
     </footer>
     <template id="aboutContent">
       <p>TopoFit estimates left and right white, pial, and spherical-registration surfaces from one brain MRI. This browser implementation runs the pinned BrainNet model locally from verified ONNX artifacts.</p>
+      <p>Optional surface analysis exports area-weighted mid-surface normals and finds connected cortical patches. Patch selection follows OpenRecon's atlas exclusion, geodesic radius, plane-fit error, area and normal-coherence criteria. The input must be a T1-weighted scan.</p>
+      <p>Patch QC shows white and pial boundaries, the mid-surface and a normal glyph. Its line is the true in-plane component at physical scale. A center dot points toward increasing source slice positions; a cross points toward decreasing positions. Select a patch row to center the viewer on that patch.</p>
       <p>Research only. The workflow is not motion-cleared and is not for prescription.</p>
     </template>
     <template id="privacyContent">

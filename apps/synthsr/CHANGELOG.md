@@ -1,5 +1,13 @@
 # synthsr
 
+## 0.3.20260914
+
+### Patch Changes
+
+- Updated dependencies
+  - @neurodesk/webapp-components@0.1.4
+  - @neurodesk/synthsr@0.3.20260914
+
 ## 0.3.20260910
 
 ### Minor Changes

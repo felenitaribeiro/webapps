@@ -16,6 +16,7 @@ function makeFakeElement(id) {
   const el = {
     id,
     children: [],
+    get childElementCount() { return this.children.length; },
     classList: {
       _classes: new Set(),
       add(c) { this._classes.add(c); },
@@ -99,6 +100,11 @@ function setupDom(elementsById = {}) {
   co.log('second message');
   assert.equal(consoleEl.children.length, 2,
     'log() must append one DOM line per call');
+  co.log('second message');
+  assert.equal(consoleEl.children.length, 2, 'identical progress must not append another line');
+  co.log('second message', { level: 'warning' });
+  co.log('second message', { level: 'warning', source: 'worker' });
+  assert.equal(consoleEl.children.length, 4, 'changed level or source must remain visible');
   // Each line is an element with .console-line class info inside innerHTML.
   assert.ok(consoleEl.children[0]._innerHtml.includes('first message'),
     'first message must appear in the line innerHTML');
@@ -110,6 +116,9 @@ function setupDom(elementsById = {}) {
   co.clear();
   assert.equal(consoleEl.children.length, 0,
     'clear() must remove all lines');
+  co.log('second message', { level: 'warning', source: 'worker' });
+  assert.equal(consoleEl.children.length, 1, 'clear must reset duplicate suppression');
+  co.clear();
 
   // copyToClipboard uses navigator.clipboard when available.
   co.log('copy me');

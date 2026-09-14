@@ -14,6 +14,11 @@ function dom(html = '<!doctype html><body></body>') {
   return instance.window.document;
 }
 
+test('sidebar grids let long result labels shrink within their available width', async () => {
+  const css = await readFile(new URL('../src/styles/imaging-workspace.css', import.meta.url), 'utf8');
+  assert.match(css, /\.nd-imaging-controls \.nd-section-content\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+});
+
 test('renderFileField produces the shared scan picker contract', () => {
   const document = dom();
   const field = renderFileField({ id: 'imageInput', text: 'Drop NIfTI or DICOM files' }, document);

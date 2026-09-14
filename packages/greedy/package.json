@@ -1,6 +1,6 @@
 {
   "name": "@neurodesk/greedy",
-  "version": "0.1.20260911",
+  "version": "0.1.20260914",
   "description": "Greedy affine and deformable MRI registration for browsers",
   "type": "module",
   "license": "Apache-2.0",

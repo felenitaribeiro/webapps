@@ -46,12 +46,17 @@ export async function fetchModel(asset, options = {}) {
     const reader = response.body.getReader();
     const chunks = [];
     let received = 0;
+    let lastProgress = -1;
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
       chunks.push(value);
       received += value.byteLength;
-      onProgress({ received, total: expected, fraction: expected ? received / expected : null });
+      const progress = expected ? Math.floor(received / expected * 100) : Math.floor(received / (1024 * 1024));
+      if (progress !== lastProgress) {
+        onProgress({ received, total: expected, fraction: expected ? received / expected : null });
+        lastProgress = progress;
+      }
     }
     bytes = new Uint8Array(received);
     let offset = 0;

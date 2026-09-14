@@ -1,4 +1,4 @@
-import { bindSectionDisclosures } from '@neurodesk/webapp-components/ui';
+import { bindSectionDisclosures, ConsoleOutput } from '@neurodesk/webapp-components/ui';
 bindSectionDisclosures(document);
 
 // Import extracted utility modules
@@ -2957,17 +2957,14 @@ class QSMApp {
    */
 
   updateOutput(message) {
-    const consoleOutput = document.getElementById('consoleOutput');
-    if (consoleOutput) {
-      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-      const line = document.createElement('div');
-      line.className = 'console-line';
-      line.innerHTML = `<span class="console-time">[${time}]</span> <span class="console-message">${message}</span>`;
-      consoleOutput.appendChild(line);
-      // Auto-scroll to bottom
-      consoleOutput.scrollTop = consoleOutput.scrollHeight;
-    }
-    console.log(message);
+    this.technicalLog ??= new ConsoleOutput({
+      outputElementId: 'consoleOutput',
+      lineClass: 'console-line',
+      timeClass: 'console-time',
+      messageClass: 'console-message',
+      separator: ' ',
+    });
+    this.technicalLog.log(message);
   }
 
   /**
