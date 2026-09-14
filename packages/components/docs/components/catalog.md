@@ -29,7 +29,11 @@ Reusable multi-echo state and UI binding for magnitude/phase navigation.
 
 ### `StageResultList`
 
-Renders worker output stages with view and download actions.
+Renders worker output stages with view and download actions. Results with a
+boolean `visible` field use a visibility checkbox. The controlled callback is
+`onVisibilityChange(stage, visible, result, input)`: the app owns the visibility
+state and should pass its latest `visible` value whenever it calls `render`
+again. `render` replaces the rows rather than retaining checkbox state.
 
 ### `LabelLegend` and `MetricsSummary`
 

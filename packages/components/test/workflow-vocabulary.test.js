@@ -6,6 +6,7 @@ import { createInfoDialog, renderCommand } from '../src/ui/renderInfoDialog.js';
 import { renderFileField, bindFileDrop } from '../src/ui/renderFileField.js';
 import { bindInfoTooltips, renderInfoIcon } from '../src/ui/bindInfoTooltips.js';
 import { renderViewerToolbar } from '../src/ui/renderViewerToolbar.js';
+import { StageResultList } from '../src/ui/StageResultList.js';
 import { readFile } from 'node:fs/promises';
 
 function dom(html = '<!doctype html><body></body>') {
@@ -128,8 +129,29 @@ test('renderViewerToolbar renders only the requested controls', () => {
   }
 });
 
+test('StageResultList uses visibility checkboxes only for toggleable results', () => {
+  const document = dom('<!doctype html><body><div id="results"></div></body>');
+  const changes = [];
+  const results = new StageResultList({
+    element: document.getElementById('results'),
+    stageLabels: { surface: 'Left pial surface' },
+    onVisibilityChange: (stage, visible) => changes.push([stage, visible]),
+  });
+  results.render({ surface: { visible: true }, report: {} });
+
+  const checkbox = document.querySelector('input[type="checkbox"]');
+  assert.equal(checkbox.checked, true);
+  assert.equal(checkbox.getAttribute('aria-label'), 'Show Left pial surface');
+  checkbox.click();
+  assert.deepEqual(changes, [['surface', false]]);
+  assert.equal(document.querySelectorAll('.nd-view-btn').length, 1);
+});
+
 test('imaging workspace provides a reusable three-panel viewer layout', async () => {
   const css = await readFile(new URL('../src/styles/imaging-workspace.css', import.meta.url), 'utf8');
   assert.match(css, /\.nd-viewer-panel-grid\s*\{/);
   assert.match(css, /\.nd-viewer-panel-title\s*\{/);
+  // Phones: the panels size the viewer (page scrolls) and switch to three columns in landscape.
+  assert.match(css, /\.nd-viewer-canvas-wrapper \{ flex: none; min-height: 0; height: calc\(3 \* min\(100vw, 360px\)\); \}/);
+  assert.match(css, /orientation: landscape\) \{\s*\.nd-imaging-viewer:has\([^)]*\) \.nd-viewer-canvas-wrapper \{ height: calc\(100vw \/ 3\); \}/);
 });

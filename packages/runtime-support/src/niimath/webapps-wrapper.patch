@@ -1,0 +1,37 @@
+diff --git a/js/src/core.ts b/js/src/core.ts
+--- a/js/src/core.ts
++++ b/js/src/core.ts
+@@ -113,9 +113,14 @@ export class NiimathBase {
+   image(file: File): ImageProcessor {
+     return new ImageProcessor({
+       worker: this.worker,
+       file,
+       operators: this.operators,
+       outputDataType: this.outputDataType
+     });
+   }
++
++  dispose(): void {
++    this.worker?.terminate();
++    this.worker = null;
++  }
+ }
+@@ -207,7 +212,12 @@ class ImageProcessor {
+   // Multiply the current image by another image: -mul <img>. The generated `mul`
+   // only handles a scalar token; this stages a File operand into MEMFS.
+   mulImage(img: File): this {
+     return this._addFileCommand('-mul', [img]);
+   }
+-
++
++  // Mask the current image with another image: -mas <img>.
++  maskImage(img: File): this {
++    return this._addFileCommand('-mas', [img]);
++  }
++
+   private _generateMethods(): void {
+@@ -354,3 +364,4 @@ interface FileOperandMethods {
+   resliceNN(ref: File): this;
+   mulImage(img: File): this;
++  maskImage(img: File): this;
+ }

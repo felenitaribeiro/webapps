@@ -152,16 +152,28 @@ the complete pipeline against TensorFlow fixtures. The optional full-example
 regression below exercises the largest activation buffers on hardware.
 
 Full-volume memory remains substantial. The largest decoder tensor has 48
-float32 channels after the concat-convolution rewrite; the app checks the GPU's
-maximum buffer and binding sizes and conservatively rejects tensors at or above
-2 GiB. The original graph produced incorrect full-volume output above this size
-despite a 4 GiB adapter limit. The CPU path has its own WASM memory ceiling. Allocation failure is
-reported; tiled mode is never silently substituted. Browser hardware determines
+float32 channels after the concat-convolution rewrite; the app checks it against
+the GPU's maximum buffer and binding sizes and reports the size needed and the
+size allowed when it does not fit. The executor no longer imposes a fixed 2 GiB
+or 2.25 GiB admission ceiling. The 2.25 GiB figure is the largest parity-validated
+case, not a limit: larger volumes are attempted when the adapter advertises
+sufficient per-buffer limits. With the rewritten graph a 256×256×192 int16 T1
+(largest tensor 2.25 GiB, 5.36 GiB of reusable buffers) completed full-volume on
+an Apple M4 Pro in 8.77 s and
+differed from the native CPU executable at 517 of 10,048,013 voxels by one
+uint8 step with an identical affine, inside the full-volume regression gate.
+The input, model, output and reference hashes, exact timings and environment are
+recorded in [`docs/large-buffer-2026-09-13.json`](docs/large-buffer-2026-09-13.json).
+Adapters that advertise smaller limits still get the explicit error. Passing the
+per-buffer check does not guarantee that all reusable buffers fit in device memory;
+allocation failure is reported if they do not. The CPU path has its own WASM memory
+ceiling, and tiled mode is never silently substituted. Browser hardware determines
 practical image size and throughput.
 
-The full example's reusable GPU activation buffers total approximately 3.35 GiB,
-plus weights and output readback. Session release destroys the GPU device and its
-resources. Optional `createGpuSession(bytes, dims, {profile: true})` records per-pass
+The public FLAIR example (padded shape 192×256×160) uses approximately 3.35 GiB
+of reusable GPU activation buffers, plus weights and output readback. Session
+release destroys the GPU device and its resources. Optional
+`createGpuSession(bytes, dims, {profile: true})` records per-pass
 GPU timestamps in `session.profile` when the adapter supports timestamp queries;
 normal application runs do not enable profiling.
 
@@ -197,6 +209,9 @@ For the optional full-volume regression, set `SYNTHSR_HARDWARE_GPU=1`,
 `SYNTHSR_FULL_REFERENCE=/path/to/reference.nii.gz` alongside `SYNTHSR_ASSET_DIR`
 when running the browser suite. This requires a GPU with sufficient buffer limits
 and memory; the default CI suite uses small synthetic volumes and software WebGPU.
+Set `SYNTHSR_VALIDATION_REPORT=/path/to/report.json` to record input, model,
+output and reference hashes, exact comparison counts, timings, GPU plan and the
+browser/host environment from that run.
 
 Before the blocked-kernel optimization, on the public example FLAIR (padded shape 192×256×160), hardware WebGPU completed
 single-pass synthesis in 98 seconds and matched the native reference at all

@@ -9,8 +9,8 @@ import { extractBrain } from "./brain-extraction.js";
 
 const $ = (id) => document.getElementById(id);
 const slots = {
-  moving: { file: null, files: [], brainExtracted: false, input: $("movingInput"), select: $("movingExample"), info: $("movingInfo"), drop: $("movingDropZone"), series: $("movingSeries"), seriesField: $("movingSeriesField") },
-  stationary: { file: null, files: [], brainExtracted: false, input: $("stationaryInput"), select: $("stationaryExample"), info: $("stationaryInfo"), drop: $("stationaryDropZone"), series: $("stationarySeries"), seriesField: $("stationarySeriesField") },
+  moving: { file: null, files: [], brainExtracted: false, input: $("movingInput"), select: $("movingExample"), info: $("movingInfo"), drop: $("movingDropZone"), series: $("movingSeries"), seriesField: $("movingSeriesField"), extract: $("movingExtractButton") },
+  stationary: { file: null, files: [], brainExtracted: false, input: $("stationaryInput"), select: $("stationaryExample"), info: $("stationaryInfo"), drop: $("stationaryDropZone"), series: $("stationarySeries"), seriesField: $("stationarySeriesField"), extract: $("stationaryExtractButton") },
 };
 const viewers = {
   moving: new NiiVueGPU({ isDragDropEnabled: false, backgroundColor: [0, 0, 0, 1] }),
@@ -105,9 +105,9 @@ function setBusy(value) {
     slot.input.disabled = disabled;
     slot.select.disabled = disabled;
     slot.series.disabled = disabled;
+    slot.extract.disabled = disabled || !slot.file || slot.brainExtracted;
   }
   $("method").disabled = disabled;
-  $("extractButton").disabled = disabled || !slots.moving.file || slots.moving.brainExtracted;
   $("runButton").disabled = disabled || !slots.moving.file || !slots.stationary.file;
   if (!value) {
     clearInterval(timer);
@@ -207,7 +207,7 @@ async function loadSlot(name, file, brainExtracted = false) {
   slot.file = file;
   slot.brainExtracted = brainExtracted;
   slot.info.hidden = false;
-  slot.info.textContent = `${file.name}${brainExtracted ? " · brain extracted" : " · brain extraction required"}`;
+  slot.info.textContent = `${file.name}${brainExtracted ? " · brain extracted" : " · not brain extracted"}`;
   slot.drop.classList.add("has-files");
   status(`${file.name} loaded as ${name}`);
 }
@@ -235,7 +235,7 @@ async function importSlot(name, filesPromise) {
     slot.seriesField.hidden = images.length < 2;
     slot.select.value = "";
     await loadSlot(name, images[0]);
-    status(`${images[0].name} loaded. It will be brain extracted before registration.`);
+    status(`${images[0].name} loaded. Brain extract it before registering if it still includes scalp.`);
   });
 }
 
@@ -247,6 +247,7 @@ for (const [name, slot] of Object.entries(slots)) {
   };
   bindFileDrop(slot.drop, (files) => void importSlot(name, files));
   slot.series.onchange = () => void runTask(`Loading ${name} series…`, () => loadSlot(name, slot.files[Number(slot.series.value)]));
+  slot.extract.onclick = () => void runTask(`Brain extracting ${name} image…`, () => brainExtract(name));
 }
 
 async function fetchExample(item) {
@@ -353,8 +354,9 @@ function runRegistration(fixed, moving, mode, onProgress) {
 
 async function register() {
   if (!slots.moving.file || !slots.stationary.file) return;
+  // Extraction is the user's call; a scalp-bearing input is only flagged, not forced.
   for (const name of ["moving", "stationary"]) {
-    if (!slots[name].brainExtracted) await brainExtract(name);
+    if (!slots[name].brainExtracted) log.log(`The ${name} image is not brain extracted; scalp can distort the registration.`);
   }
   const fixed = slots.stationary.file;
   const moving = slots.moving.file;
@@ -386,7 +388,6 @@ async function register() {
   }
 }
 
-$("extractButton").onclick = () => void runTask("Starting brain extraction…", () => brainExtract("moving"));
 $("runButton").onclick = () => void runTask("Starting registration…", async () => {
   await clearOutput();
   await register();

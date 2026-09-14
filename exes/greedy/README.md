@@ -69,11 +69,14 @@ greedy-rs -d 3 -rf fixed.nii.gz -rm ct.nii.gz warped-ct.nii.gz -rb auto -r warp.
 ## Browser API
 
 `greedy-rs-wasm` exports `register_affine_wasm`, `register_nmi_svf_wasm`,
-`reslice_affine`, and `reslice_warp_affine` over in-memory NIfTI blobs. The
-browser host must call its async `initThreadPool` export before registration;
-the WASM build then uses the core's Rayon slab loops. It is gzip-free: pass raw
-`.nii` bytes, and use browser `CompressionStream` / `DecompressionStream` for
-`.nii.gz` at the host boundary. Native builds retain `.nii.gz` support.
+`reslice_affine`, `reslice_affine_options`, `reslice_warp_affine`, and
+`reslice_warp_affine_options` over in-memory NIfTI blobs. The option-bearing
+reslicers expose nearest-neighbour interpolation, background fill and SYNcro's
+optional preceding pathological-to-primary affine. The browser host must call
+its async `initThreadPool` export before registration; the WASM build then uses
+the core's Rayon slab loops. It is gzip-free: pass raw `.nii` bytes, and use
+browser `CompressionStream` / `DecompressionStream` for `.nii.gz` at the host
+boundary. Native builds retain `.nii.gz` support.
 
 ## Compatibility with Greedy 1.3
 

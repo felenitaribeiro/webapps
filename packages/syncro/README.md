@@ -1,6 +1,6 @@
 # SYNcro
 
-Normalize an anatomical NIfTI scan to the MNI152 1 mm brain template. The shared pipeline runs SynthSR, SynthStrip and ANTs SyN, then applies the transformation to the acquired scan and optional aligned images. It does not fill lesions or exclude them from registration.
+Normalize a primary NIfTI scan to the MNI152 1 mm brain template. The shared browser pipeline follows native SYNcro: SynthSR, configurable MindGrab/SynthStrip brain extraction, configurable Greedy/ANTs normalization, pathological-modality alignment, lesion propagation and niimath masking. The packaged Node fallback retains SynthStrip and ANTs for portable CPU execution.
 
 ## Portable Windows and Linux builds
 
@@ -9,7 +9,7 @@ Download the Windows x64 or Linux x64 archive from the webapp's **Standalone** d
 On Linux, download, verify, extract, and check the current release:
 
 ```bash
-version=0.1.20260910
+version=MAJOR.MINOR.YYYYMMDD
 curl -fLO "https://github.com/neurodesk/webapps/releases/download/syncro-v${version}/syncro-${version}-linux-x64.tar.gz"
 curl -fLO "https://github.com/neurodesk/webapps/releases/download/syncro-v${version}/syncro-${version}-linux-x64.tar.gz.sha256"
 sha256sum -c "syncro-${version}-linux-x64.tar.gz.sha256"
@@ -21,7 +21,7 @@ tar -xzf "syncro-${version}-linux-x64.tar.gz"
 On Windows, run these commands in PowerShell:
 
 ```powershell
-$Version = '0.1.20260910'
+$Version = 'MAJOR.MINOR.YYYYMMDD'
 $Archive = "syncro-$Version-windows-x64.zip"
 $Base = "https://github.com/neurodesk/webapps/releases/download/syncro-v$Version"
 Invoke-WebRequest "$Base/$Archive" -OutFile $Archive
@@ -39,13 +39,13 @@ Use `--ct` for a CT image in Hounsfield units. Modality is explicit; there is no
 
 ## Node.js package for HPC
 
-Download `neurodesk-syncro-0.1.20260910.tgz` from the same **Standalone** dialog. The website carries a tarball built from `packages/syncro`, not an npm registry publication. Node.js 22 or newer is required. `ONNXRUNTIME_NODE_INSTALL=skip` skips optional CUDA downloads and retains the CPU backend.
+Download `neurodesk-syncro-MAJOR.MINOR.YYYYMMDD.tgz` from the same **Standalone** dialog. The website carries a tarball built from `packages/syncro`, not an npm registry publication. Node.js 22 or newer is required. `ONNXRUNTIME_NODE_INSTALL=skip` skips optional CUDA downloads and retains the CPU backend.
 
 ```bash
-ONNXRUNTIME_NODE_INSTALL=skip npm install -g --prefix "$HOME/.local" ./neurodesk-syncro-0.1.20260910.tgz
+ONNXRUNTIME_NODE_INSTALL=skip npm install -g --prefix "$HOME/.local" ./neurodesk-syncro-MAJOR.MINOR.YYYYMMDD.tgz
 export PATH="$HOME/.local/bin:$PATH"
 syncro input.nii.gz results --threads 4
-syncro input.nii.gz results-with-lesion --lesion lesion.nii.gz --labels labels.nii.gz
+syncro input.nii.gz results-with-lesion --lesion lesion.nii.gz
 ```
 
 ## Offline HPC jobs
@@ -76,15 +76,13 @@ An output directory must be new. After interruption, `--resume` verifies input, 
 
 ## Images and outputs
 
-All inputs must be scalar 3D NIfTI. Accompanying images must already share dimensions and affine geometry with the anatomical scan. Choose their meaning explicitly:
+The Node fallback accepts one scalar primary NIfTI and one optional binary lesion map already in the same grid. Use the native command or browser for a separate pathological-modality scan. The shared browser pipeline permits a one-voxel mask border, matching native SYNcro's geometry tolerance.
 
-- `--image`: continuous intensities, linear interpolation.
-- `--lesion`: values 0/1 only; 3 mm FWHM smoothing, linear interpolation, then midpoint threshold, matching SYNcro's binary propagation policy.
-- `--labels`: nonnegative integer categories representable in float32; nearest-neighbor interpolation without smoothing.
+Output names match native SYNcro: `w<input>` is each normalized input, `wb<primary>` is the normalized brain-extracted primary, and `wbt1<primary>` is the normalized brain-extracted synthetic T1. The browser's `--keep-synth` equivalent additionally retains `t1<primary>` in native space. `provenance.json` records selected engines and timing. Original intensities are resampled into MNI space as float32; lesion output is uint8.
 
-Outputs include `synthetic-t1.nii`, `synthetic-brain.nii`, `brain-mask.nii`, `warped-synthetic-brain.nii.gz`, `warped-original.nii.gz`, accompanying outputs, `0GenericAffine.mat`, `1Warp.nii.gz`, `1InverseWarp.nii.gz`, and `provenance.json`. Original intensities are resampled once into MNI space as float32; original storage dtype is not preserved. Binary output is uint8.
-
-Transforms use ANTs/ITK physical coordinates (LPS, displacement in mm). The forward ANTs transform list is `[1Warp.nii.gz, 0GenericAffine.mat]`. For MNI-to-subject application, use the inverse affine followed by the inverse warp according to ANTs' inverse-list convention: `[0GenericAffine.mat, 1InverseWarp.nii.gz]` with `whichtoinvert=[true,false]`. Do not interpret the displacement channels as voxel offsets.
+Like native SYNcro, the shared pipeline refuses inputs whose basenames would
+create duplicate output names. Non-CT scalar reslices use a zero background;
+`--ct` uses the lower of zero and the primary image minimum.
 
 ## Development and validation
 

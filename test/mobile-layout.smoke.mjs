@@ -136,6 +136,25 @@ try {
         await verifyMobileImageImport(page);
         await checkLayout(page, `${app.id}/image-import/320`);
       }
+      if (await page.locator('.nd-viewer-panel-grid').count()) {
+        // All three viewer panels must be square (height capped at 360px), inside the page width, and reachable by scrolling.
+        for (const viewport of [{ width: 375, height: 667 }, { width: 667, height: 375 }]) {
+          await page.setViewportSize(viewport);
+          const panels = await page.locator('.nd-viewer-panel').evaluateAll((nodes) => nodes.map((node) => {
+            const rect = node.getBoundingClientRect();
+            return { width: rect.width, height: rect.height, right: rect.right, bottom: rect.bottom + window.scrollY, page: document.documentElement.scrollHeight };
+          }));
+          expect(panels).toHaveLength(3);
+          for (const panel of panels) {
+            expect(panel.width).toBeGreaterThanOrEqual(200);
+            expect(panel.height).toBeGreaterThanOrEqual(Math.min(panel.width, 360) - 3);
+            expect(panel.height).toBeLessThanOrEqual(panel.width + 1);
+            expect(panel.right).toBeLessThanOrEqual(viewport.width + 1);
+            expect(panel.bottom).toBeLessThanOrEqual(panel.page + 1);
+          }
+          console.log(`PASS ${app.id}/panels/${viewport.width}x${viewport.height}`);
+        }
+      }
       if (app.id === 'zarro') {
         await verifyMobileMeasurement(page, origin);
         await checkLayout(page, `${app.id}/touch-measurement/390`);

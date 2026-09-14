@@ -364,7 +364,7 @@ apps:
     shell: imaging-workspace
     app_scoped_runtime_families: [ort-web-asyncify]
     ci:
-      toolchains: [node]
+      toolchains: [node, rust-wasm]
       shared_runtime: false
       browser_test: true
       release: true
@@ -428,6 +428,26 @@ apps:
       shared_runtime: false
       browser_test: true
       release: true
+  - id: ants
+    path: ants
+    title: ANTs
+    description: Affine and SyN diffeomorphic MRI registration in the browser with ANTs.
+    category: data-preparation
+    keywords: [registration, SyN, diffeomorphic, affine, NIfTI, ANTs]
+    legacy_domain: null
+    runtime: vite-webgpu
+    model_manifest: null
+    asset_manifest_schema: null
+    source: neurodesk/webapps@local
+    license: Apache-2.0
+    maintainers: [neurodesk]
+    support_status: experimental
+    shell: imaging-workspace
+    ci:
+      toolchains: [node]
+      shared_runtime: false
+      browser_test: true
+      release: true
   - id: brain2print
     path: brain2print
     title: Brain2Print
@@ -464,6 +484,26 @@ apps:
     support_status: experimental
     shell: imaging-workspace
     app_scoped_runtime_families: [ort-web-asyncify, dcm2niix]
+    ci:
+      toolchains: [node]
+      shared_runtime: false
+      browser_test: true
+      release: true
+  - id: fireants
+    path: fireants
+    title: FireANTs
+    description: Register brain images in the browser with CPU or WebGPU FireANTs.
+    category: data-preparation
+    keywords: [FireANTs, registration, SyN, greedy, WebGPU, MRI, NIfTI]
+    legacy_domain: null
+    runtime: vite-webgpu
+    model_manifest: null
+    asset_manifest_schema: null
+    source: neurodesk/webapps@local
+    license: Apache-2.0
+    maintainers: [neurodesk]
+    support_status: experimental
+    shell: imaging-workspace
     ci:
       toolchains: [node]
       shared_runtime: false

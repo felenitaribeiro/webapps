@@ -26,6 +26,6 @@ export default neurodeskViteConfig({
   appId: 'topofit',
   plugins: [localModels()],
   build: { target: 'es2022', outDir: 'dist', assetsInlineLimit: 0 },
-  optimizeDeps: { exclude: ['onnxruntime-web'] },
+  optimizeDeps: { exclude: ['@niivue/niimath', 'onnxruntime-web'] },
   resolve: { conditions: ['onnxruntime-web-use-extern-wasm'] },
 });

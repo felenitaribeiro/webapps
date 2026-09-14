@@ -14,13 +14,14 @@ const failures = [];
 if (process.env.UPLOAD_ARTIFACTS) await mkdir(process.env.UPLOAD_ARTIFACTS, { recursive: true });
 const checks = [
   ['syncro', '#input', async page => {
-    await expect(page.locator('#fileInfo')).toContainText('16 × 16 × 4');
+    await expect(page.locator('#primaryInfo')).toContainText('16 × 16 × 4');
     await expect(page.locator('#runButton')).toBeEnabled();
-    await page.getByText('Accompanying images', { exact: true }).click();
-    await page.locator('#additional').setInputFiles(dicomSeries({ extension: '' }));
-    await expect(page.locator('#additionalList label')).toContainText('.nii');
+    await page.locator('#lesion').setInputFiles(dicomSeries({ extension: '' }));
+    await expect(page.locator('#lesionInfo')).toContainText('16 × 16 × 4');
+    await page.locator('#pathological').setInputFiles(dicomSeries({ extension: '' }));
+    await expect(page.locator('#pathologicalInfo')).toContainText('16 × 16 × 4');
     await page.locator('#input').setInputFiles([...dicomSeries(), ...dicomSeries({series:2})]);
-    await expect(page.locator('#statusText')).toContainText('one DICOM series at a time');
+    await expect(page.locator('#statusText')).toContainText('one complete DICOM series for this slot');
     await expect(page.locator('#runButton')).toBeDisabled();
   }],
   ['synthsr', '#imageInput', async page => expect(page.locator('#fileInfo')).toContainText('16 × 16 × 4')],
