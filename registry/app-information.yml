@@ -868,6 +868,11 @@ apps:
         title: TopoFit
         reference: "Hoopes A, Iglesias JE, Fischl B, Greve DN, Dalca AV. TopoFit: Rapid Reconstruction of Topologically-Correct Cortical Surfaces. Proceedings of Machine Learning Research. 2022;172:5086-5096."
         url: https://proceedings.mlr.press/v172/hoopes22a.html
+      - group: Image processing
+        title: niimath
+        reference: "Rorden C, Webster M, Drake C, et al. niimath and fslmaths: replication as a method to enhance testing and improve tool quality. Aperture Neuro. 2024;4."
+        doi: 10.52294/001c.94384
+        code: https://github.com/rordenlab/niimath
       - group: DICOM conversion
         title: dcm2niix
         reference: "Li X, Morgan PS, Ashburner J, Smith J, Rorden C. The first step for neuroimaging data analysis: DICOM to NIfTI conversion. Journal of Neuroscience Methods. 2016;264:47-56."

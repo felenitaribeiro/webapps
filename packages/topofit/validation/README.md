@@ -3,7 +3,7 @@
 The release gate compares the production browser app with OpenRecon TopoFit 0.5.1 in two cases based on OpenNeuro `ds000001/sub-01/anat/sub-01_T1w.nii.gz`.
 
 - The controlled case gives both implementations the identical browser-resampled 1 mm RAS volume and runs OpenRecon with `--no-conform`. It isolates ONNX conversion, browser execution, geometry, and serialization.
-- The end-to-end case gives both implementations the original anisotropic volume. Both use the pinned OpenRecon cubic conform contract.
+- The end-to-end case gives both implementations the original anisotropic volume. The checked-in report predates the niimath browser conformer and compares the package's cubic fallback with the pinned OpenRecon contract.
 
 The reference is the real CPU neural path from the immutable container `vnmd/topofit_0.5.1@sha256:dff22ad5577a1a7ba0530759e009f293271ea5ddfc3441fb35b61322bbd6ec29`. It is not the container's mock mode. The browser run loads the same scan through the public UI, executes the production worker and ONNX Runtime WebAssembly, and downloads the same six FreeSurfer files and QC NIfTI exposed to a user.
 
@@ -32,14 +32,16 @@ The checked-in end-to-end report passes: its conformed 256³ tensor is byte-iden
 
 ## Oblique inputs
 
-The browser conform originally refused oblique scans. It now evaluates the same order-3
-B-spline through the full voxel mapping. Because the OpenRecon container cannot run without
-Docker, that path is pinned to the contract's implementation instead:
-`scipy-conform-check.py input.nii.gz` conforms the scan in Node and with
-`scipy.ndimage.affine_transform(order=3, mode='constant')` and counts differing voxels after
-the pipeline's integer cast. On a 192×256×256 int16 T1 with a 0.9 × 0.94 × 0.94 mm grid and a
-2.7° obliquity (largest off-diagonal mapping term 0.046) all 16,777,216 voxels matched, and
-the full browser reconstruction completed in 68 s. An OpenRecon end-to-end capture for an
-oblique scan is still owed before the release gate covers this path. The checker requires
-NumPy and SciPy, writes its large intermediate arrays into a temporary directory, and removes
-that directory after either a passing or failing comparison.
+The production browser app uses the pinned npm `@niivue/niimath` WebAssembly
+worker and applies `-conform -ras` to both axis-aligned and oblique scans. The
+package's Node fallback still evaluates its order-3 B-spline through the full
+voxel mapping. `scipy-conform-check.py input.nii.gz` checks that fallback against
+`scipy.ndimage.affine_transform(order=3, mode='constant')` and counts differing
+voxels after the pipeline's integer cast. On a 192×256×256 int16 T1 with a
+0.9 × 0.94 × 0.94 mm grid and a 2.7° obliquity, all 16,777,216 voxels matched.
+
+The checked-in reports describe the fallback conformer. Capture a fresh browser
+end-to-end report, including an oblique scan, before treating niimath preprocessing
+as covered by the parity release gate. The checker requires NumPy and SciPy,
+writes its large intermediate arrays into a temporary directory, and removes that
+directory after either a passing or failing comparison.

@@ -4,7 +4,7 @@
 import { test, expect } from "@playwright/test";
 import { writeFreeSurfer } from '../../../packages/topofit/src/results.js';
 
-function niftiFixture() {
+function niftiFixture(oblique = false) {
   const buffer = Buffer.alloc(352 + 2 * 2 * 2 * 4);
   buffer.writeInt32LE(348, 0);
   buffer.writeInt16LE(3, 40);
@@ -15,6 +15,9 @@ function niftiFixture() {
   buffer.writeFloatLE(352, 108);
   buffer.writeInt16LE(1, 254);
   buffer.writeFloatLE(1, 280);
+  if (oblique) {
+    buffer.writeFloatLE(0.1, 284);
+  }
   buffer.writeFloatLE(1, 300);
   buffer.writeFloatLE(1, 320);
   buffer.write('n+1\0', 344, 'ascii');
@@ -111,7 +114,7 @@ test('input, cancellation, and privacy workflow preserve the scan', async ({ pag
 
 test('production inference worker starts the verified model request', async ({ page }) => {
   await page.goto('/');
-  await page.locator('#imageInput').setInputFiles(niftiFixture());
+  await page.locator('#imageInput').setInputFiles(niftiFixture(true));
   const modelRequest = page.waitForRequest(/trega-synth-random\.onnx/, { timeout: 10_000 });
   await page.route('**/trega-synth-random.onnx*', (route) => route.fulfill({ body: '' }));
   await page.locator('#runButton').click();

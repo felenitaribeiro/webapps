@@ -19,13 +19,12 @@ browser comparison in `validation/`. The checked-in manifest points to an
 immutable dataset commit and records every runtime asset's byte count and
 SHA-256.
 
-With conforming enabled, the package reproduces OpenRecon's centered 256³,
-1 mm RAS, order-3 cubic preprocessing. Axis-aligned scans take a separable fast path
-whose conformed tensor is byte-identical to OpenRecon on the checked-in ds000001
-report; oblique scans go through a full 3-D evaluation of the same spline, which
-`validation/scipy-conform-check.py` shows bit-identical to SciPy's
-`affine_transform(order=3)`, the contract's implementation, on a 0.9 mm oblique T1.
-OpenRecon end-to-end parity has been captured for axis-aligned input only.
+The production browser app injects the pinned npm `@niivue/niimath` WebAssembly
+conformer and applies `-conform -ras` to axis-aligned and oblique scans. The
+package retains its deterministic centered 256³, 1 mm RAS order-3 conformer as
+the non-browser fallback and validation reference. Existing OpenRecon parity
+reports describe that reference path; a new browser end-to-end capture with the
+niimath path is still pending.
 ONNX Runtime WebAssembly uses one thread so repeated runs have a fixed executor
 policy. The downloaded processing manifest contains SHA-256 hashes for the
 input, conformed tensor, model inputs, assets, and outputs; elapsed time is kept

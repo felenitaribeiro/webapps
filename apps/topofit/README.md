@@ -4,11 +4,10 @@ TopoFit reconstructs left and right white, pial, and spherical-registration surf
 
 Use a desktop browser with cross-origin isolation and several gigabytes of available memory. The complete order-6 reconstruction contains 245,762 vertices and 491,520 faces per hemisphere. It is research software, not motion-cleared and not for prescription.
 
-The built-in conformer resamples any NIfTI geometry, oblique included, onto the
-centred 256³ 1 mm RAS grid. The axis-aligned release fixture is byte-identical
-to OpenRecon. Oblique resampling is bit-identical to the pinned SciPy order-3
-cubic contract on the recorded fixture; an oblique OpenRecon end-to-end capture
-is still pending.
+The browser uses the pinned npm `@niivue/niimath` WebAssembly worker to apply
+`-conform -ras`, resampling axis-aligned and oblique NIfTI geometry onto a
+centred 256³ 1 mm RAS grid. The original image and affine remain available for
+the source-grid QC volume.
 
 ```bash
 pnpm --filter topofit dev

@@ -637,6 +637,9 @@ importers:
       '@neurodesk/webapp-components':
         specifier: workspace:*
         version: link:../../packages/components
+      '@niivue/niimath':
+        specifier: 1.4.20260909
+        version: 1.4.20260909
       '@niivue/niivue':
         specifier: 1.0.0-rc.11
         version: 1.0.0-rc.11(patch_hash=f9748394ca2414090ff8580b3514639f284a8be82cc3b0152e59c96d4a48b3b6)

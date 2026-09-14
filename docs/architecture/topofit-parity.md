@@ -10,13 +10,18 @@ Runtime repeatability had a separate gap. The released browser chose one to four
 
 ## Usage
 
-The worker calls one reconstruction operation. The package owns the scientific preprocessing contract and the executor records the settings that it uses.
+The worker calls one reconstruction operation. The app owns the production
+browser conformer and the executor records the settings that it uses.
 
-`runTopofit()` owns conforming and receives the fixed browser session factory,
-tensor constructor, verified asset loader, and executor identity. The worker no
-longer injects an app-local resampler.
+`runTopofit()` receives the fixed browser session factory, tensor constructor,
+verified asset loader, executor identity, and an optional conformer boundary.
+The TopoFit worker supplies the pinned npm `@niivue/niimath` implementation.
 
-With `conform: true`, the package always runs the pinned OpenRecon 0.5.1 conform operation. With `conform: false`, the package validates the input grid and uses it unchanged. The app cannot substitute another resampler under the same model name.
+With `conform: true`, the production browser runs niimath `-conform -ras`, which
+accepts axis-aligned and oblique scans and emits the model's centered 256³ 1 mm
+RAS grid. The package's cubic implementation remains the Node and validation
+fallback when no boundary is supplied. With `conform: false`, the package
+validates the input grid and uses it unchanged.
 
 ## Shape
 
@@ -52,27 +57,38 @@ type RunResult = {
 };
 ```
 
-`conformVolume()` owns RAS orientation for axis-aligned inputs, nibabel's integer-centered target affine, SciPy-compatible cubic spline filtering, mirror-edge interpolation, constant-zero fill, and integer output casting. It uses separable Float64 interpolation stages and returns the final Float32 model volume. Before decoding voxel values, `readVolume()` estimates every simultaneous conform buffer and rejects inputs above the 768 MiB preprocessing budget. On the release fixture, peak Node resident memory is approximately 457 MB and conforming takes approximately 6.7 seconds.
+The production niimath worker performs linear conforming, intensity scaling, and
+RAS orientation in WebAssembly. `conformVolume()` owns the fallback's RAS
+orientation, integer-centered target affine, SciPy-compatible cubic spline
+filtering, edge behavior, and integer output casting. Before the fallback
+decodes voxel values, `readVolume()` estimates every simultaneous conform buffer
+and rejects inputs above the 768 MiB preprocessing budget.
 
 ## Ownership
 
 | Location | Responsibility |
 | --- | --- |
 | `packages/topofit/src/volume.js` | Decode NIfTI geometry, scaling, scalar type, and source-grid QC data. |
-| `packages/topofit/src/conform.js` | Own the pinned OpenRecon conform operation and its memory lifetime. |
-| `packages/topofit/src/pipeline.js` | Prepare the image, run the existing neural schedule, and assemble outputs. |
+| `packages/topofit/src/conform.js` | Own the deterministic cubic fallback and its memory lifetime. |
+| `packages/topofit/src/pipeline.js` | Invoke the supplied conformer or fallback, run the neural schedule, and assemble outputs. |
 | `packages/topofit/src/browser.js` | Create ONNX Runtime sessions and bind executor settings to executor identity. |
 | `packages/topofit/src/results.js` | Write deterministic FreeSurfer surfaces. |
-| `apps/topofit/src/inference-worker.js` | Fetch verified assets, create one executor per worker, and transfer results. |
+| `apps/topofit/src/inference-worker.js` | Run pinned niimath `-conform -ras`, fetch verified assets, create one executor per worker, and transfer results. |
 | `packages/topofit/validation` | Capture the pinned container, run the production browser, and compare immutable evidence. |
 
-The app-local conformer is deleted. Source-grid QC behavior and all output names remain unchanged.
+The worker disposes its niimath instance after each conform operation. The
+original decoded source remains available for source-grid QC, and all output
+names remain unchanged.
 
 ## Verification
 
 The reference capture records the container, NumPy, SciPy, and nibabel identities, plus the effective dtype, conformed affine, and float32 model input. Compact fixture metadata belongs in Git. Large inputs and outputs belong in the immutable Hugging Face release.
 
-Unit fixtures cover centered cubic interpolation, integer rounding, anisotropy, axis permutation, and axis flips against SciPy and nibabel outputs. The production validation additionally requires the exact conformed-tensor SHA-256 captured from the immutable container. Oblique inputs remain rejected with an actionable error.
+Unit fixtures cover the cubic fallback's centered interpolation, integer
+rounding, anisotropy, axis permutation, axis flips, and oblique mapping. The
+production browser smoke test sends an oblique NIfTI through the real niimath
+worker before allowing the model request. A fresh immutable end-to-end capture
+is still required to set parity evidence for the niimath output tensor.
 
 The end-to-end gate runs the original `ds000001` input through the production browser and the pinned container. It requires exact topology, finite vertices, mean anatomical distance at most 0.25 mm, p95 at most 0.5 mm, maximum distance at most 2 mm, the existing registration limits, and at least 0.99 source-voxel QC coverage. The previous 0.467 to 0.562 mm result is the failing baseline.
 
@@ -82,25 +98,37 @@ The comparison rejects mixed evidence by checking the conversion status, input d
 
 ## Result
 
-The captured browser conform tensor matches all 16,777,216 OpenRecon voxels and the target affine exactly. End-to-end mean anatomical surface distance is now 0.046 to 0.068 mm, p95 is 0.098 to 0.164 mm, and maximum distance is 0.238 to 0.467 mm. Two independent `0.3.20260912` production-browser runs produced byte-identical surfaces, QC NIfTI, and stable manifest. Their elapsed times, recorded separately, were 171 and 172 seconds.
+The checked-in capture shows that the cubic fallback matches all 16,777,216
+OpenRecon voxels and the target affine. Its end-to-end mean anatomical surface
+distance is 0.046 to 0.068 mm, p95 is 0.098 to 0.164 mm, and maximum distance is
+0.238 to 0.467 mm. Those figures do not claim parity for the current browser
+niimath path; its new end-to-end capture remains pending.
 
 ## Synthesis decision
 
 Three candidates explored the design. Candidate 1 supplied the base: always run the reference branch when conforming is enabled, bind executor identity to execution, and require exact repeatability. Candidate 3's release-evidence consistency check is also included.
 
-The design rejects unproved conform shortcuts, tolerance within one fixed executor, and public resampling plans. It postpones affine-solver and ONNX graph changes until exact conforming measures the remaining error.
+The current design favors the shared, maintained niimath WebAssembly conformer
+for broad browser input support. It keeps the proven cubic implementation as a
+validation fallback rather than maintaining two production conformers.
 
 ## Tradeoffs
 
-- We accept a TopoFit-specific cubic implementation in exchange for a testable match to the pinned reference.
-- We start with plain JavaScript so Node and the browser run the same numerical code. If measured latency or memory exceeds the release budget, move the private kernel to WASM without changing its contract.
+- Browser preprocessing is shared with the other Neurodesk apps and handles oblique scans, but it is not numerically identical to OpenRecon's cubic conformer.
+- The JavaScript cubic implementation remains available for deterministic Node tests and reference investigation, not as the browser default.
 - We use one thread for a fixed production policy. This costs runtime but removes a host-dependent executor choice.
 - We change the provenance schema so scientific metadata is byte-stable. Timing stays available to the UI and validation sidecars.
 
 ## Alternatives
 
-Extending Niimath with more flags does not encode nibabel's center, prefilter, edge, and dtype rules. A generic resampling API would expose those rules to callers. Shipping Python, nibabel, and SciPy in WASM would add a large runtime and opaque memory behavior. None of these options is a better first implementation.
+Running the cubic JavaScript fallback in production preserves the closest
+OpenRecon parity but duplicates a scientific image-processing operation and has
+a larger memory footprint. Shipping Python, nibabel, and SciPy in WASM would add
+a much larger runtime. The pinned niimath package is the smallest maintained
+path that accepts real-world oblique NIfTI inputs in both dev and production.
 
 ## Next step
 
-The remaining 0.05 to 0.07 mm error is at the ONNX/runtime and affine-solve boundary. Any further tightening starts with isolated activation and affine-solver evidence; it does not change preprocessing again without a failing conform fixture.
+Capture the current niimath `-conform -ras` tensor and full reconstruction for
+an axis-aligned reference and an oblique T1, then record the preprocessing
+difference separately from controlled ONNX/runtime parity.

@@ -48,7 +48,7 @@ export function runTopofit(request: Readonly<{
   overlayThickness?: 0 | 1 | 2 | 3;
   onProgress?: (fraction: number, message: string) => void;
   // Browser boundary adapters for conforming, verified assets, and ONNX.
-  conformImage: (buffer: ArrayBuffer) => Promise<ArrayBuffer>;
+  conformInput?: () => Promise<ArrayBuffer>;
   loadAsset: (name: string) => Promise<ArrayBuffer>;
   createSession: (model: ArrayBuffer) => Promise<unknown>;
   Tensor: unknown;
@@ -61,7 +61,7 @@ The implementation parses untrusted image, worker-message, and release-manifest 
 
 ```mermaid
 flowchart TD
-  input[Source NIfTI or shared DICOM import] --> conform[1 mm RAS conform]
+  input[Source NIfTI or shared DICOM import] --> conform[niimath -conform -ras]
   conform --> trega[TReGA ONNX on threaded WASM]
   trega --> affine[Float64 weighted least-squares affine]
   affine --> prepare[176 x 208 x 176 TopoFit frame]
@@ -82,13 +82,13 @@ One worker owns one run and its ONNX sessions. Sessions are released between sta
 
 | Location | Responsibility |
 | --- | --- |
-| `apps/topofit` | Canonical imaging-workspace UI, import, worker lifetime, viewing, and downloads. |
+| `apps/topofit` | Canonical imaging-workspace UI, import, niimath browser conforming, worker lifetime, viewing, and downloads. |
 | `packages/topofit/src/index.js` | Single reconstruction facade and result contract. |
 | `packages/topofit/src/volume.js` | NIfTI geometry, cropping, normalization, and coordinate transforms. |
 | `packages/topofit/src/affine.js` | Float64 weighted affine solve. |
 | `packages/topofit/src/qc.js` | Native-grid QC rasterization and NIfTI writing. |
 | `packages/topofit/src/browser.js` | Threaded ONNX Runtime WebAssembly setup and session ownership. |
-| `packages/topofit/src/pipeline.js` | Staged TReGA, feature, mesh-order, subdivision, and pial execution. |
+| `packages/topofit/src/pipeline.js` | Conformer boundary plus staged TReGA, feature, mesh-order, subdivision, and pial execution. |
 | `packages/topofit/src/results.js` | FreeSurfer geometry and provenance serialization. |
 | `packages/topofit/model.manifest.json` | Immutable Hugging Face revision, hashes, tensor contracts, topology identity, and provenance. |
 | `packages/topofit/scripts` | Container capture, conversion, packing, parity, publication, and activation. |
@@ -125,7 +125,7 @@ The checked-in manifest pins an immutable Hugging Face commit and repeats every 
 
 Tolerance values are recorded before activation and are never widened to turn a failed conversion green. Nearest-surface distance and screenshots are diagnostics; neither can replace vertex-correspondence and file-geometry checks.
 
-The controlled `ds000001` comparison passed with 0.052–0.062 mm mean corresponding distance across the four anatomical surfaces, 0.028–0.041 degree mean registration error, exact face topology, and at least 0.9996 symmetric one-voxel QC coverage. The end-to-end comparison records the separate conformer effect as a measured difference: 0.467–0.562 mm mean surface distance for the browser's Niimath Lanczos path versus OpenRecon's nibabel cubic path.
+The controlled `ds000001` comparison passed with 0.052–0.062 mm mean corresponding distance across the four anatomical surfaces, 0.028–0.041 degree mean registration error, exact face topology, and at least 0.9996 symmetric one-voxel QC coverage. An older end-to-end comparison measured a 0.467–0.562 mm mean surface difference between a previous browser Niimath resize path and OpenRecon's nibabel cubic path. That historical result does not validate the current `-conform -ras` path.
 
 ## Tradeoffs
 
