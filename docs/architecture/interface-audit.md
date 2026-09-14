@@ -107,3 +107,17 @@ comparison is recorded in `packages/topofit/validation/surface-analysis.md`.
 
 The fresh 22-app production build passed `pnpm audit:interfaces`,
 `pnpm test:mobile`, `pnpm test:interface-workflows` and `pnpm test:image-uploads`.
+
+## TopoFit output cleanup, 14 September 2026
+
+The browser output list omits both registration spheres. Patch rows and the
+viewer caption use labels such as "Left flat patch 1" and "Right flat patch 3".
+Meshes are clipped to a 1 mm band around each slice. A rendered-pixel regression
+check confirms a selected patch is visible on its own slice and disappears after
+scrolling away. The processing manifest, QC header and About content no longer
+include motion-clearance or prescription wording.
+
+All 13 TopoFit browser checks passed, including the full-resolution surface replay.
+Desktop and phone screenshots were reviewed in dark and light themes.
+The fresh 24-app production build passed `pnpm audit:interfaces`,
+`pnpm test:mobile` and `pnpm test:interface-workflows`.

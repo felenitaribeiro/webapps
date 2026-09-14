@@ -56,16 +56,16 @@ async function deliverSurfaces(page, analysisResult = { files: [], analysis: nul
   await expect(page.locator('#imageLabel')).toContainText(analysisResult.analysis ? 'PATCHES' : 'TOPOFIT QC');
 }
 
-test('all six surfaces load, anatomical views remain multiplanar, and repeated progress logs once', async ({ page }, testInfo) => {
+test('anatomical surfaces remain multiplanar, registration outputs are hidden, and repeated progress logs once', async ({ page }, testInfo) => {
   await deliverSurfaces(page);
+  await expect(page.locator('#resultList')).not.toContainText(/registration/i);
   await expect(page.locator('.nd-console-message').filter({ hasText: 'Loading topofit-t1w-1mm-white-order-6.onnx' })).toHaveCount(1);
-  for (const label of ['Left registration sphere', 'Right registration sphere', 'Left white surface', 'Left pial surface', 'Right white surface', 'Right pial surface']) {
+  for (const label of ['Left white surface', 'Left pial surface', 'Right white surface', 'Right pial surface']) {
     const row = page.locator('.nd-volume-toggle').filter({ hasText: label });
-    if (label.includes('sphere')) await row.getByRole('button', { name: 'View', exact: true }).click();
-    else await row.getByRole('checkbox').check();
-    await expect(page.locator('#imageLabel')).toContainText(label.includes('sphere') ? 'REGISTRATION' : label.includes('white') ? 'WHITE' : 'PIAL');
+    await row.getByRole('checkbox').check();
+    await expect(page.locator('#imageLabel')).toContainText(label.includes('white') ? 'WHITE' : 'PIAL');
     await expect(page.locator('#viewerError')).toBeHidden();
-    await expect(page.locator('.nd-view-tab.active')).toHaveText(label.includes('sphere') ? '3D' : '3-Plane');
+    await expect(page.locator('.nd-view-tab.active')).toHaveText('3-Plane');
   }
   await page.screenshot({ path: testInfo.outputPath('surfaces-desktop.png') });
 });
@@ -101,18 +101,44 @@ test('computed patches, local normals and QC can be viewed and downloaded', asyn
     loadAtlas: async () => atlas,
   });
   expect(result.analysis.flat_patch_status).toBe('PATCHES_FOUND');
+  const geometry = JSON.parse(new TextDecoder().decode(result.files.find((file) => file.id === 'patch-geometry').bytes));
+  await page.addInitScript((indexCount) => {
+    window.patchRenderingEnabled = true;
+    const draw = WebGL2RenderingContext.prototype.drawElements;
+    WebGL2RenderingContext.prototype.drawElements = function (mode, count, ...args) {
+      if (!window.patchRenderingEnabled && mode === this.TRIANGLES && count === indexCount) return;
+      return draw.call(this, mode, count, ...args);
+    };
+  }, geometry.patches.LH01.faces.length * 3);
   await deliverSurfaces(page, result);
   expect(await page.locator('#controls').evaluate((controls) => {
     const right = controls.getBoundingClientRect().right;
     return [...controls.querySelectorAll('.nd-download-btn')].every((button) => button.getBoundingClientRect().right <= right);
   })).toBe(true);
-  const patch = page.locator('.nd-volume-toggle').filter({ hasText: 'LH01' });
+  const patch = page.locator('.nd-volume-toggle').filter({ hasText: 'Left flat patch 1' });
   await patch.getByRole('button', { name: 'View', exact: true }).click();
-  await expect(page.locator('#imageLabel')).toContainText('LH01');
+  await expect(page.locator('#imageLabel')).toContainText('Left flat patch 1');
   const selected = result.analysis.flat_patches.LH01;
   await expect(page.locator('#location')).toContainText(selected.center_ras_mm.map(Math.round).join('×'));
   await expect(page.locator('#viewerError')).toBeHidden();
   await expect(page.locator('.nd-view-tab.active')).toHaveText('3-Plane');
+  const canvas = await page.locator('#gl1').boundingBox();
+  const axial = { x: canvas.x, y: canvas.y + canvas.height / 2, width: Math.floor(canvas.width / 2), height: Math.floor(canvas.height / 2) };
+  const sliceImage = async (visible) => {
+    await page.evaluate((enabled) => { window.patchRenderingEnabled = enabled; }, visible);
+    await page.getByRole('button', { name: '3-Plane', exact: true }).click();
+    return page.screenshot({ clip: axial });
+  };
+  await page.screenshot({ path: testInfo.outputPath('patch-before-scroll.png') });
+  expect((await sliceImage(true)).equals(await sliceImage(false))).toBe(false);
+  await page.mouse.move(axial.x + axial.width / 2, axial.y + axial.height / 2);
+  for (let i = 0; i < 8; i += 1) await page.mouse.wheel(0, 120);
+  await expect(page.locator('#location')).not.toContainText(selected.center_ras_mm.map(Math.round).join('×'));
+  const scrolledPatch = await sliceImage(true);
+  const scrolledWithoutPatch = await sliceImage(false);
+  expect(scrolledPatch.equals(scrolledWithoutPatch), 'A patch outside the current slice must not be projected onto it').toBe(true);
+  await sliceImage(true);
+  await page.screenshot({ path: testInfo.outputPath('patch-scrolled-away.png') });
   const normals = page.locator('.nd-volume-toggle').filter({ hasText: 'Left mid-surface normals' });
   await normals.getByRole('button', { name: 'View', exact: true }).click();
   await expect(page.locator('#infoDialog')).toContainText('nx_ras,ny_ras,nz_ras');
@@ -164,7 +190,7 @@ test('invalid patch settings and a missing ROI are revealed before reconstructio
   expect(await page.evaluate(() => window.lastTopofitJob.patches)).toBeNull();
 });
 
-test('real reconstructed cortex displays patch QC, selected patches and registration spheres', async ({ page }, testInfo) => {
+test('real reconstructed cortex displays patch QC and clearly named patches', async ({ page }, testInfo) => {
   const root = process.env.TOPOFIT_SURFACE_REPLAY;
   test.skip(!root, 'Requires external OpenRecon validation surfaces and surface-analysis replay outputs.');
   test.setTimeout(120_000);
@@ -202,17 +228,22 @@ test('real reconstructed cortex displays patch QC, selected patches and registra
   await page.locator('#runButton').click();
   await expect(page.locator('#imageLabel')).toContainText('PATCHES', { timeout: 60_000 });
   await expect(page.locator('#viewerError')).toBeHidden();
+  await expect(page.locator('#resultList')).not.toContainText(/registration/i);
+  for (const side of ['Left', 'Right']) {
+    for (let index = 1; index <= 3; index += 1) {
+      await expect(page.getByText(`${side} flat patch ${index}`, { exact: true })).toHaveCount(1);
+    }
+  }
   await page.screenshot({ path: testInfo.outputPath('real-patch-qc.png') });
-  await page.locator('.nd-volume-toggle').filter({ hasText: 'LH01' }).getByRole('button', { name: 'View', exact: true }).click();
-  await expect(page.locator('#imageLabel')).toContainText('LH01');
+  await page.locator('.nd-volume-toggle').filter({ hasText: 'Left flat patch 1' }).getByRole('button', { name: 'View', exact: true }).click();
+  await expect(page.locator('#imageLabel')).toContainText('Left flat patch 1');
   await expect(page.locator('#viewerError')).toBeHidden();
   await expect(page.locator('.nd-view-tab.active')).toHaveText('3-Plane');
   await page.screenshot({ path: testInfo.outputPath('real-selected-patch.png') });
-  for (const label of ['Left registration sphere', 'Right registration sphere', 'Left white surface', 'Right pial surface']) {
+  for (const label of ['Left white surface', 'Right pial surface']) {
     const row = page.locator('.nd-volume-toggle').filter({ hasText: label });
-    if (label.includes('sphere')) await row.getByRole('button', { name: 'View', exact: true }).click();
-    else await row.getByRole('checkbox').check();
-    await expect(page.locator('#imageLabel')).toContainText(label.includes('sphere') ? 'REGISTRATION' : label.includes('white') ? 'WHITE' : 'PIAL');
+    await row.getByRole('checkbox').check();
+    await expect(page.locator('#imageLabel')).toContainText(label.includes('white') ? 'WHITE' : 'PIAL');
     await expect(page.locator('#viewerError')).toBeHidden();
   }
 });

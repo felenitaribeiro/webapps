@@ -21,7 +21,7 @@ export function createQcVolume(volume, surfaces, thickness = 1) {
     if (pial[i]) output[i] = 3500;
     if (white[i]) output[i] = 4095;
   }
-  return writeInt16Nifti(volume, output, 'RESEARCH ONLY - NOT MOTION-CLEARED - NOT FOR PRESCRIPTION');
+  return writeInt16Nifti(volume, output, 'TopoFit cortical surface QC');
 }
 
 function surfaceMask(volume, vertexSets, thickness) {
