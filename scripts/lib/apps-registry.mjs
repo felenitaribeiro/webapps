@@ -60,9 +60,12 @@ export async function loadAppsRegistry(path = registryPath) {
     if (!ID.test(app.path ?? '')) errors.push(`invalid app path for ${app.id}: ${app.path}`);
     if (ids.has(app.id)) errors.push(`duplicate app id: ${app.id}`);
     if (paths.has(app.path)) errors.push(`duplicate app path: ${app.path}`);
-    if (!categoryIds.has(app.category)) {
-      errors.push(`invalid category for ${app.id}: ${app.category}`);
+    if (!Array.isArray(app.categories) || app.categories.length === 0
+        || app.categories.some((category) => !categoryIds.has(category))
+        || new Set(app.categories).size !== app.categories.length) {
+      errors.push(`categories must be a non-empty array of unique declared category ids for ${app.id}`);
     }
+    if (Object.hasOwn(app, 'category')) errors.push(`use categories instead of category for ${app.id}`);
     if (!Array.isArray(app.keywords) || app.keywords.length === 0
       || app.keywords.some((keyword) => typeof keyword !== 'string' || !keyword.trim())) {
       errors.push(`keywords must be a non-empty string array for ${app.id}`);
@@ -132,6 +135,7 @@ export async function loadAppsRegistry(path = registryPath) {
       ...app,
       ci: Object.freeze({ browser_test: false, ...app.ci }),
       keywords: Object.freeze([...app.keywords]),
+      categories: Object.freeze([...app.categories]),
       app_scoped_runtime_families: Object.freeze([...(app.app_scoped_runtime_families ?? [])]),
     }))),
   });

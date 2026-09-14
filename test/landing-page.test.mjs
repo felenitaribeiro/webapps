@@ -7,7 +7,7 @@ test('landing page renders categorized, searchable app cards', async () => {
   const registry = await loadAppsRegistry();
   const html = renderLandingPage(registry);
 
-  assert.equal((html.match(/data-app-card/g) ?? []).length, registry.apps.length);
+  assert.equal((html.match(/data-app-card/g) ?? []).length, registry.apps.reduce((count, app) => count + app.categories.length, 0));
   assert.equal((html.match(/data-category-section=/g) ?? []).length, registry.site.categories.length);
   assert.match(html, /id="app-search" type="search"/);
   assert.match(html, /data-search="[^"]*dicom[^"]*"/i);

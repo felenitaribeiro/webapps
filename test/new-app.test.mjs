@@ -53,7 +53,7 @@ test('default invocation (pnpm new-app <name>) scaffolds and validates', async (
   assert.equal(app.title, 'demo-app');
   assert.equal(app.runtime, 'react-vite');
   assert.equal(app.shell, 'imaging-workspace');
-  assert.equal(app.category, 'data-preparation');
+  assert.deepEqual(app.categories, ['data-preparation']);
   assert.equal(app.support_status, 'experimental');
   assert.equal(app.source, 'neurodesk/webapps@local');
   assert.deepEqual([...app.keywords], ['TODO']);
@@ -89,7 +89,7 @@ test('flags select runtime, shell, category, and catalog text', async (t) => {
     'demo-app',
     '--runtime', 'vite-webgpu',
     '--shell', 'react',
-    '--category', 'quality-annotation',
+    '--category', 'quality-control',
     '--title', 'Demo App',
     '--description', 'Demonstrates the scaffolder: flags, validation, and more.',
     '--keywords', 'demo, scaffold ,test',
@@ -100,7 +100,7 @@ test('flags select runtime, shell, category, and catalog text', async (t) => {
   const app = findApp(registry, 'demo-app');
   assert.equal(app.runtime, 'vite-webgpu');
   assert.equal(app.shell, 'react');
-  assert.equal(app.category, 'quality-annotation');
+  assert.deepEqual(app.categories, ['quality-control']);
   assert.equal(app.title, 'Demo App');
   assert.equal(app.description, 'Demonstrates the scaffolder: flags, validation, and more.');
   assert.deepEqual([...app.keywords], ['demo', 'scaffold', 'test']);

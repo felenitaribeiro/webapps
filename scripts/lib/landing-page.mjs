@@ -4,8 +4,11 @@ const escape = (value) => String(value)
   .replaceAll('>', '&gt;')
   .replaceAll('"', '&quot;');
 
-function renderCard(app, category) {
-  const searchText = [app.title, app.description, category.title, ...app.keywords].join(' ');
+function renderCard(app, category, categories) {
+  const categoryTitles = categories
+    .filter(({ id }) => app.categories.includes(id))
+    .map(({ title }) => title);
+  const searchText = [app.title, app.description, ...categoryTitles, ...app.keywords].join(' ');
   const tags = app.keywords.slice(0, 3)
     .map((keyword) => `<li>${escape(keyword)}</li>`)
     .join('');
@@ -14,7 +17,7 @@ function renderCard(app, category) {
     : '';
 
   return `
-          <a class="app-card" href="./${escape(app.path)}/" data-app-card data-category="${escape(app.category)}" data-search="${escape(searchText.toLocaleLowerCase())}">
+          <a class="app-card" href="./${escape(app.path)}/" data-app-card data-app-id="${escape(app.id)}" data-category="${escape(category.id)}" data-search="${escape(searchText.toLocaleLowerCase())}">
             <span class="app-card__topline">
               <span class="app-card__category">${escape(category.title)}</span>
               ${status}
@@ -28,8 +31,8 @@ function renderCard(app, category) {
           </a>`;
 }
 
-function renderCategory(category, apps, index) {
-  const cards = apps.map((app) => renderCard(app, category)).join('');
+function renderCategory(category, apps, index, categories) {
+  const cards = apps.map((app) => renderCard(app, category, categories)).join('');
   return `
       <section class="category-section" id="category-${escape(category.id)}" data-category-section="${escape(category.id)}" aria-labelledby="heading-${escape(category.id)}">
         <header class="category-section__header">
@@ -48,12 +51,12 @@ export function renderLandingPage(registry) {
   const totalApps = registry.apps.length;
   const totalCategories = registry.site.categories.length;
   const categoryButtons = registry.site.categories.map((category) => {
-    const count = registry.apps.filter((app) => app.category === category.id).length;
+    const count = registry.apps.filter((app) => app.categories.includes(category.id)).length;
     return `<button class="filter-chip" type="button" data-category-filter="${escape(category.id)}" aria-pressed="false">${escape(category.title)} <span>${count}</span></button>`;
   }).join('');
   const categorySections = registry.site.categories.map((category, index) => {
-    const apps = registry.apps.filter((app) => app.category === category.id);
-    return renderCategory(category, apps, index);
+    const apps = registry.apps.filter((app) => app.categories.includes(category.id));
+    return renderCategory(category, apps, index, registry.site.categories);
   }).join('');
 
   return `<!doctype html>

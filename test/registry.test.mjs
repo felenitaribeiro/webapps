@@ -33,7 +33,7 @@ test('every app has searchable category metadata', async () => {
   const categoryIds = new Set(registry.site.categories.map(({ id }) => id));
   assert.equal(categoryIds.size, registry.site.categories.length);
   for (const app of registry.apps) {
-    assert.ok(categoryIds.has(app.category), `${app.id} must use a declared category`);
+    assert.ok(app.categories.every((category) => categoryIds.has(category)), `${app.id} must use declared categories`);
     assert.ok(app.keywords.length >= 3, `${app.id} must provide useful search keywords`);
   }
 });
@@ -144,4 +144,34 @@ test('pnpm is the only workspace lockfile authority', async () => {
   }
   await visit(repoRoot);
   assert.deepEqual(found, []);
+});
+
+
+test('catalog assigns task categories and shares surface apps with Visualization', async () => {
+  const registry = await loadAppsRegistry();
+  const expected = {
+    dwi2trx: ['diffusion-imaging'],
+    niimath: ['image-processing'],
+    syncro: ['normalization'],
+    dicom2vid: ['visualization'],
+    surfannotate: ['visualization', 'surfaces'],
+    topofit: ['visualization', 'surfaces'],
+  };
+  for (const [id, categories] of Object.entries(expected)) {
+    assert.deepEqual(registry.apps.find((app) => app.id === id).categories, categories);
+  }
+});
+
+test('registry rejects missing, unknown, repeated, and legacy categories', async () => {
+  const raw = parse(await readFile(join(repoRoot, 'registry', 'apps.yml'), 'utf8'));
+  const path = join(await mkdtemp(join(tmpdir(), 'apps-categories-')), 'apps.yml');
+  for (const categories of [undefined, [], ['unknown'], ['visualization', 'visualization']]) {
+    raw.apps[0].categories = categories;
+    await writeFile(path, stringify(raw));
+    await assert.rejects(loadAppsRegistry(path), /categories must be a non-empty array of unique declared category ids/);
+  }
+  raw.apps[0].categories = ['visualization'];
+  raw.apps[0].category = 'visualization';
+  await writeFile(path, stringify(raw));
+  await assert.rejects(loadAppsRegistry(path), /use categories instead of category/);
 });

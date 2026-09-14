@@ -150,7 +150,7 @@ const entry = {
   path: name,
   title,
   description,
-  category,
+  categories: [category],
   keywords,
   legacy_domain: null,
   runtime,

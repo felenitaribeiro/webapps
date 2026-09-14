@@ -153,8 +153,9 @@ try {
     (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
   await landing.goto(`${origin}/`, { waitUntil: 'domcontentloaded' });
   const cards = await landing.locator('a.app-card').count();
+  const expectedCards = registry.apps.reduce((count, app) => count + app.categories.length, 0);
   const landingText = await landing.locator('body').innerText();
-  if (cards !== registry.apps.length) failures.push(`landing page has ${cards} app cards, expected ${registry.apps.length}`);
+  if (cards !== expectedCards) failures.push(`landing page has ${cards} app cards, expected ${expectedCards}`);
   if (landingText.includes('Models and large scientific assets are delivered from Hugging Face')) {
     failures.push('landing page still contains the removed scientific-assets message');
   }
@@ -177,19 +178,40 @@ try {
   }
 
   await landing.locator('#clear-search').click();
-  await landing.locator('[data-category-filter="quality-annotation"]').click();
+  await landing.locator('[data-category-filter="quality-control"]').click();
   const qualityMatches = await landing.locator('[data-app-card]:not([hidden])').count();
-  const expectedQualityMatches = registry.apps.filter(({ category }) => category === 'quality-annotation').length;
+  const expectedQualityMatches = registry.apps.filter(({ categories }) => categories.includes('quality-control')).length;
   if (qualityMatches !== expectedQualityMatches) {
     failures.push(`quality category has ${qualityMatches} visible apps, expected ${expectedQualityMatches}`);
   }
 
+  for (const category of registry.site.categories) {
+    await landing.locator(`[data-category-filter="${category.id}"]`).click();
+    const visible = await landing.locator('[data-app-card]:visible').evaluateAll((cards) => cards.map((card) => card.dataset.appId).sort());
+    const expected = registry.apps.filter((app) => app.categories.includes(category.id)).map((app) => app.id).sort();
+    if (JSON.stringify(visible) !== JSON.stringify(expected)) failures.push(`${category.id}: incorrect category membership`);
+  }
+  await landing.locator('[data-category-filter="all"]').click();
+  await landing.locator('#app-search').fill('TopoFit');
+  if (await landing.locator('[data-app-card]:visible').count() !== 2) failures.push('TopoFit must appear in Visualization and Surfaces');
+  if (await landing.locator('#result-summary').textContent() !== `Showing 1 of ${registry.apps.length} apps`) {
+    failures.push('search must count TopoFit once across its two categories');
+  }
+  await landing.locator('[data-category-filter="surfaces"]').click();
+  if (await landing.locator('[data-app-card]:visible').count() !== 1) failures.push('Surfaces filter must show only one TopoFit card');
+  await landing.locator('#clear-search').click();
+  if (await landing.locator('#result-summary').textContent() !== `Showing 2 of ${registry.apps.length} apps in Surfaces`) {
+    failures.push('Surfaces summary must count its two apps');
+  }
   await landing.locator('[data-category-filter="all"]').click();
   await landing.locator('#app-search').fill('no-such-neurodesk-app');
   if (!(await landing.locator('#no-results').isVisible())) failures.push('landing search does not show its empty state');
   await landing.locator('#reset-filters').click();
   const resetMatches = await landing.locator('[data-app-card]:not([hidden])').count();
-  if (resetMatches !== registry.apps.length) failures.push(`landing reset shows ${resetMatches} apps, expected ${registry.apps.length}`);
+  if (resetMatches !== expectedCards) failures.push(`landing reset shows ${resetMatches} cards, expected ${expectedCards}`);
+  if (await landing.locator('#result-summary').textContent() !== `${registry.apps.length} apps across ${registry.site.categories.length} categories`) {
+    failures.push('reset must restore the unique app total');
+  }
   await landing.close();
 
   for (const app of appsUnderTest) {

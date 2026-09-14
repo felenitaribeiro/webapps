@@ -10,6 +10,7 @@ const resultSummary = document.querySelector('#result-summary');
 const noResults = document.querySelector('#no-results');
 const cards = [...document.querySelectorAll('[data-app-card]')];
 const sections = [...document.querySelectorAll('[data-category-section]')];
+const totalApps = new Set(cards.map((card) => card.dataset.appId)).size;
 const categoryFilters = [...document.querySelectorAll('[data-category-filter]')];
 
 let activeCategory = 'all';
@@ -21,14 +22,14 @@ function normalize(value) {
 function filterCatalog() {
   const query = searchInput.value.trim();
   const terms = normalize(query).split(/\s+/).filter(Boolean);
-  let visibleApps = 0;
+  const visibleApps = new Set();
 
   for (const card of cards) {
     const matchesCategory = activeCategory === 'all' || card.dataset.category === activeCategory;
     const searchable = normalize(card.dataset.search);
     const matchesSearch = terms.every((term) => searchable.includes(term));
     card.hidden = !(matchesCategory && matchesSearch);
-    if (!card.hidden) visibleApps += 1;
+    if (!card.hidden) visibleApps.add(card.dataset.appId);
   }
 
   for (const section of sections) {
@@ -40,10 +41,10 @@ function filterCatalog() {
     ? ''
     : ` in ${activeButton.childNodes[0].textContent.trim()}`;
   resultSummary.textContent = query || activeCategory !== 'all'
-    ? `Showing ${visibleApps} of ${cards.length} apps${categoryName}`
-    : `${cards.length} apps across ${sections.length} categories`;
+    ? `Showing ${visibleApps.size} of ${totalApps} apps${categoryName}`
+    : `${totalApps} apps across ${sections.length} categories`;
   clearSearch.hidden = !query;
-  noResults.hidden = visibleApps !== 0;
+  noResults.hidden = visibleApps.size !== 0;
 }
 
 function selectCategory(category) {

@@ -13,15 +13,27 @@ site:
     - id: quantitative-imaging
       title: Quantitative Imaging
       description: Create maps, derived images, and reproducible quantitative results.
+    - id: diffusion-imaging
+      title: Diffusion Imaging
+      description: Fit diffusion models and reconstruct white-matter pathways.
+    - id: image-processing
+      title: Image Processing
+      description: Transform images and apply image maths and statistical operations.
     - id: registration
       title: Registration
-      description: Align images with each other or normalize scans to a reference space.
+      description: Align images with each other.
+    - id: normalization
+      title: Normalization
+      description: Normalize scans and aligned maps to a standard reference space.
     - id: data-preparation
       title: Data Preparation & Privacy
       description: Convert images, improve resolution, and remove identifying facial features.
-    - id: visualization-surfaces
-      title: Visualization & Surfaces
-      description: Explore volumes, reconstruct and annotate surfaces, and create printable meshes.
+    - id: visualization
+      title: Visualization
+      description: Explore volumes and surfaces and create videos and printable views.
+    - id: surfaces
+      title: Surfaces
+      description: Reconstruct cortical surfaces and annotate surface regions.
     - id: quality-control
       title: Quality Control
       description: Check image quality and compare acquisition protocols.
@@ -31,7 +43,7 @@ apps:
     path: musclemap
     title: MuscleMap
     description: Browser-based muscle segmentation and fat metrics.
-    category: segmentation-analysis
+    categories: [segmentation-analysis]
     keywords: [muscle, MRI, segmentation, fat, Dixon, IMF, body composition]
     legacy_domain: musclemap.neurodesk.org
     runtime: static-esm
@@ -53,7 +65,7 @@ apps:
     path: vesselboost
     title: VesselBoost
     description: Browser-based blood-vessel segmentation.
-    category: segmentation-analysis
+    categories: [segmentation-analysis]
     keywords: [blood vessels, vasculature, MRI, segmentation, vessel enhancement]
     legacy_domain: vesselboost.neurodesk.org
     runtime: static-esm-rust
@@ -74,7 +86,7 @@ apps:
     path: sct
     title: Spinal Cord Toolbox
     description: Browser-native spinal cord MRI segmentation workflows.
-    category: segmentation-analysis
+    categories: [segmentation-analysis]
     keywords: [spinal cord, MRI, segmentation, anatomy, SCT]
     legacy_domain: sct.neurodesk.org
     runtime: static-esm
@@ -96,7 +108,7 @@ apps:
     path: calmar
     title: CALMaR
     description: Co-designed Automated Lesion Mapping and Reporting.
-    category: segmentation-analysis
+    categories: [segmentation-analysis]
     keywords: [lesion, mapping, reporting, MRI, segmentation]
     legacy_domain: calmar.neurodesk.org
     runtime: static-esm
@@ -117,7 +129,7 @@ apps:
     path: qsmbly
     title: QSMbly
     description: Quantitative Susceptibility Mapping in the browser.
-    category: quantitative-imaging
+    categories: [quantitative-imaging]
     keywords: [QSM, susceptibility, phase, MRI, quantitative mapping]
     legacy_domain: qsmbly.neurodesk.org
     runtime: rust-wasm
@@ -137,7 +149,7 @@ apps:
     path: seedseg
     title: SeedSeg
     description: Prostate fiducial-marker segmentation in the browser.
-    category: segmentation-analysis
+    categories: [segmentation-analysis]
     keywords: [prostate, fiducial marker, segmentation, MRI, radiotherapy]
     legacy_domain: seedseg.neurodesk.org
     runtime: static-esm
@@ -157,7 +169,7 @@ apps:
     path: dicompare
     title: dicompare
     description: DICOM protocol comparison, validation, and schema tooling.
-    category: quality-control
+    categories: [quality-control]
     keywords: [DICOM, protocol, comparison, validation, schema, metadata]
     legacy_domain: dicompare.neurodesk.org
     runtime: react-vite
@@ -176,7 +188,7 @@ apps:
     path: deface
     title: Deface
     description: Privacy-preserving MRI defacing entirely in the browser.
-    category: data-preparation
+    categories: [data-preparation]
     keywords: [defacing, anonymisation, anonymization, privacy, MRI, de-identification]
     legacy_domain: niivue.github.io/deface
     runtime: vite-webgpu
@@ -196,7 +208,7 @@ apps:
     path: easy-mp2rage
     title: Easy MP2RAGE T1 Map
     description: Browser-native MP2RAGE T1 mapping, B1 correction, and UNI denoising.
-    category: quantitative-imaging
+    categories: [quantitative-imaging]
     keywords: [MP2RAGE, T1 mapping, B1 correction, UNI, denoising, MRI]
     legacy_domain: thomshaw92.github.io/Easy-MP2RAGE-T1-Map
     runtime: rust-wasm
@@ -215,7 +227,7 @@ apps:
     path: niimath
     title: NiiMath
     description: Interactive browser-native neuroimaging maths and visualization.
-    category: quantitative-imaging
+    categories: [image-processing]
     keywords: [NIfTI, image maths, image processing, visualization, MRI, statistics]
     legacy_domain: niivue.github.io/niivue-niimath
     runtime: vite-wasm
@@ -234,7 +246,7 @@ apps:
     path: dicom2vid
     title: MRI2VID
     description: Convert DICOM, NIfTI, or MGZ volumes into scrolling videos in the browser.
-    category: data-preparation
+    categories: [visualization]
     keywords: [DICOM, NIfTI, MGZ, video, conversion, volume]
     legacy_domain: thomshaw92.github.io/DICOM2Vid
     runtime: static-esm
@@ -254,7 +266,7 @@ apps:
     path: browserqc
     title: BrowserQC
     description: Automated browser-native MRI segmentation and image-quality metrics.
-    category: quality-control
+    categories: [quality-control]
     keywords: [quality control, QC, MRI, segmentation, metrics, review]
     legacy_domain: neurolabusc.github.io/BrowserQC
     runtime: vite-webgpu
@@ -274,7 +286,7 @@ apps:
     path: surfannotate
     title: SurfAnnotate
     description: Cortical surface viewer with manual ROI delineation and vertex selection.
-    category: visualization-surfaces
+    categories: [visualization, surfaces]
     keywords: [cortical surface, annotation, ROI, mesh, vertex, FreeSurfer]
     legacy_domain: null
     runtime: vite-webgpu
@@ -294,7 +306,7 @@ apps:
     path: zarro
     title: ZARRo
     description: Stream and explore multiscale OME-Zarr volumes directly in the browser.
-    category: visualization-surfaces
+    categories: [visualization]
     keywords: [OME-Zarr, Zarr, microscopy, DANDI, multiscale, volume, visualization, measurement]
     legacy_domain: null
     runtime: vite-webgpu
@@ -314,7 +326,7 @@ apps:
     path: synthsr
     title: SynthSR
     description: Synthesize a 1 mm T1-weighted brain image locally in your browser.
-    category: data-preparation
+    categories: [data-preparation]
     keywords: [SynthSR, MRI, CT, super-resolution, T1]
     legacy_domain: null
     runtime: vite-webgpu
@@ -336,7 +348,7 @@ apps:
     path: synthseg
     title: SynthSeg
     description: Segment brain MRI into FreeSurfer labels locally in your browser.
-    category: segmentation-analysis
+    categories: [segmentation-analysis]
     keywords: [SynthSeg, MRI, CT, segmentation, FreeSurfer, WebGPU]
     legacy_domain: null
     runtime: vite-webgpu
@@ -357,7 +369,7 @@ apps:
     path: syncro
     title: SYNcro
     description: Normalize brain scans and aligned lesion maps to MNI space.
-    category: registration
+    categories: [normalization]
     keywords: [SYNcro, SynthSR, MindGrab, Brainchop, SynthStrip, ANTs, MNI, registration]
     legacy_domain: null
     runtime: vite-webgpu
@@ -378,7 +390,7 @@ apps:
     path: dwi2trx
     title: dwi2trx
     description: Browser-native diffusion tensor fitting and GPU streamline tractography.
-    category: quantitative-imaging
+    categories: [diffusion-imaging]
     keywords: [diffusion MRI, DTI, tractography, TRX, WebGPU, DICOM]
     legacy_domain: null
     runtime: vite-webgpu
@@ -398,7 +410,7 @@ apps:
     path: edgereg
     title: EdgeReg
     description: Affine MRI registration in the browser with niimath.
-    category: registration
+    categories: [registration]
     keywords: [registration, affine, NIfTI, niimath, NiiVue]
     legacy_domain: null
     runtime: vite-webgpu
@@ -418,7 +430,7 @@ apps:
     path: greedy
     title: Greedy
     description: Affine and deformable MRI registration in the browser with Greedy.
-    category: registration
+    categories: [registration]
     keywords: [registration, affine, deformable, NIfTI, Greedy]
     legacy_domain: null
     runtime: vite-webgpu
@@ -438,7 +450,7 @@ apps:
     path: ants
     title: ANTs
     description: Affine and SyN diffeomorphic MRI registration in the browser with ANTs.
-    category: registration
+    categories: [registration]
     keywords: [registration, SyN, diffeomorphic, affine, NIfTI, ANTs]
     legacy_domain: null
     runtime: vite-webgpu
@@ -458,7 +470,7 @@ apps:
     path: brain2print
     title: Brain2Print
     description: Create printable brain meshes from NIfTI or DICOM scans in your browser.
-    category: visualization-surfaces
+    categories: [visualization]
     keywords: [brain, mri, segmentation, mesh, 3d-printing]
     legacy_domain: null
     runtime: vite-webgpu
@@ -478,7 +490,7 @@ apps:
     path: topofit
     title: TopoFit
     description: Reconstruct cortical white, pial, and registration surfaces locally from a brain MRI.
-    category: visualization-surfaces
+    categories: [visualization, surfaces]
     keywords: [TopoFit, cortical surface, MRI, FreeSurfer, BrainNet, ONNX]
     legacy_domain: null
     runtime: vite-wasm
@@ -499,7 +511,7 @@ apps:
     path: fireants
     title: FireANTs
     description: Register brain images in the browser with CPU or WebGPU FireANTs.
-    category: registration
+    categories: [registration]
     keywords: [FireANTs, registration, SyN, greedy, WebGPU, MRI, NIfTI]
     legacy_domain: null
     runtime: vite-webgpu
