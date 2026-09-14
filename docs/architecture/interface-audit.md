@@ -121,3 +121,26 @@ All 13 TopoFit browser checks passed, including the full-resolution surface repl
 Desktop and phone screenshots were reviewed in dark and light themes.
 The fresh 24-app production build passed `pnpm audit:interfaces`,
 `pnpm test:mobile` and `pnpm test:interface-workflows`.
+
+## TopoFit analysis after reconstruction, 14 September 2026
+
+A secondary **Run surface analysis** action becomes available after reconstruction.
+It reuses the current scan's retained surface geometry in a separate worker.
+Normals, patch settings and native-grid ROI inputs remain in the existing
+collapsible analysis section. A successful run replaces analysis outputs;
+cancellation or failure retains the previous results. Selecting another scan
+clears the reconstruction and disables the action.
+
+Selected flat patches use yellow, two-sided slice intersections. The default
+shaded mesh could blend into the scan or be hidden by depth testing and back-face
+culling after slice clipping was enabled. The patch keeps the 1 mm clipping band;
+its highlight belongs only to slices that intersect it. Browser checks count
+highlighted pixels on synthetic and real cortical patches and verify that the
+highlight disappears when scrolling away.
+
+All 14 production browser checks passed, including a new right-hemisphere patch
+search on full-resolution reference surfaces, repeated normals analysis without
+ONNX requests, cancellation, atlas failure recovery and scan replacement.
+Desktop and phone screenshots were reviewed in dark and light themes.
+The fresh 24-app build passed `pnpm audit:interfaces`, `pnpm test:mobile`
+and `pnpm test:interface-workflows`.

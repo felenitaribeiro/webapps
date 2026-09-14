@@ -3,6 +3,23 @@ import { writeFreeSurfer } from '../../../packages/topofit/src/results.js';
 import { analyzeSurfaces } from '../../../packages/topofit/src/surface-analysis.js';
 import { readVolume } from '../../../packages/topofit/src/volume.js';
 
+async function patchPixels(page, clip) {
+  const screenshot = await page.screenshot({ clip });
+  return page.evaluate(async (base64) => {
+    const image = await createImageBitmap(await (await fetch(`data:image/png;base64,${base64}`)).blob());
+    const canvas = new OffscreenCanvas(image.width, image.height);
+    const context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0);
+    const { data } = context.getImageData(0, 0, image.width, image.height);
+    let count = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] > 180 && data[i + 1] > 140 && data[i + 2] < 80) count += 1;
+    }
+    image.close();
+    return count;
+  }, screenshot.toString('base64'));
+}
+
 function scan() {
   const buffer = Buffer.alloc(352 + 16 ** 3 * 4);
   buffer.writeInt32LE(348, 0);
@@ -35,11 +52,20 @@ async function deliverSurfaces(page, analysisResult = { files: [], analysis: nul
       postMessage(job, ...rest) {
         if (!this.fixture) return super.postMessage(job, ...rest);
         window.lastTopofitJob = job;
+        window.reconstructionRuns = (window.reconstructionRuns || 0) + 1;
         for (let i = 0; i < 100; i += 1) this.onmessage({ data: { type: 'progress', value: i / 100, message: 'Loading topofit-t1w-1mm-white-order-6.onnx…' } });
         const files = ['lh', 'rh'].flatMap((h) => ['white', 'pial', 'registration'].map((s) => ({ id: `${h}-${s}`, name: `${h}.${s}`, mediaType: 'application/vnd.freesurfer.surface', bytes: Uint8Array.from(bytes).buffer })));
         files.push({ id: 'qc', name: 'qc.nii', mediaType: 'application/nifti', bytes: Uint8Array.from(qc).buffer });
         files.push(...analysisFiles.map((file) => ({ ...file, bytes: Uint8Array.from(file.bytes).buffer })));
-        this.onmessage({ data: { type: 'result', files, provenance: { surfaceVertices: 4, surfaceAnalysis: analysis }, elapsedSeconds: 1 } });
+        const vertices = {};
+        const faces = {};
+        for (const side of ['lh', 'rh']) {
+          vertices[`${side}.white`] = Float32Array.from([2, 2, 2, 12, 2, 2, 2, 12, 2, 2, 2, 12]);
+          vertices[`${side}.pial`] = Float32Array.from(vertices[`${side}.white`], (v) => v + 1);
+          vertices[`${side}.registration`] = Float32Array.from(vertices[`${side}.white`]);
+          faces[side] = Int32Array.from([0, 2, 1, 0, 1, 3, 0, 3, 2, 1, 2, 3]);
+        }
+        this.onmessage({ data: { type: 'result', files, surfaces: { vertices, faces }, provenance: { surfaceVertices: 4, surfaceAnalysis: analysis, runtime: {}, outputSha256: { 'topofit_qc.nii': 'original-qc' } }, elapsedSeconds: 1 } });
       }
     };
   }, {
@@ -130,6 +156,7 @@ test('computed patches, local normals and QC can be viewed and downloaded', asyn
     return page.screenshot({ clip: axial });
   };
   await page.screenshot({ path: testInfo.outputPath('patch-before-scroll.png') });
+  expect(await patchPixels(page, axial), 'Selected patch must be visibly highlighted on the slice').toBeGreaterThan(4);
   expect((await sliceImage(true)).equals(await sliceImage(false))).toBe(false);
   await page.mouse.move(axial.x + axial.width / 2, axial.y + axial.height / 2);
   for (let i = 0; i < 8; i += 1) await page.mouse.wheel(0, 120);
@@ -137,6 +164,7 @@ test('computed patches, local normals and QC can be viewed and downloaded', asyn
   const scrolledPatch = await sliceImage(true);
   const scrolledWithoutPatch = await sliceImage(false);
   expect(scrolledPatch.equals(scrolledWithoutPatch), 'A patch outside the current slice must not be projected onto it').toBe(true);
+  expect(await patchPixels(page, axial)).toBe(0);
   await sliceImage(true);
   await page.screenshot({ path: testInfo.outputPath('patch-scrolled-away.png') });
   const normals = page.locator('.nd-volume-toggle').filter({ hasText: 'Left mid-surface normals' });
@@ -194,6 +222,7 @@ test('real reconstructed cortex displays patch QC and clearly named patches', as
   const root = process.env.TOPOFIT_SURFACE_REPLAY;
   test.skip(!root, 'Requires external OpenRecon validation surfaces and surface-analysis replay outputs.');
   test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1024, height: 1100 });
   const { readFile } = await import('node:fs/promises');
   const { join } = await import('node:path');
   const outputs = JSON.parse(await readFile(join(root, 'outputs/files.json'), 'utf8'));
@@ -202,6 +231,8 @@ test('real reconstructed cortex displays patch QC and clearly named patches', as
     ...['lh', 'rh'].flatMap((h) => ['white', 'pial', 'registration'].map((s) => ({ id: `${h}-${s}`, name: `${h}.${s}`, mediaType: 'application/vnd.freesurfer.surface' }))),
     ...outputs,
   ];
+  const atlasPath = join(root, 'atlas/fsaverage-cortex.bin');
+  await page.route('**/fsaverage-cortex.bin', (route) => route.fulfill({ path: atlasPath, contentType: 'application/octet-stream' }));
   const paths = new Map(files.map((file) => [file.name, join(root, outputs.includes(file) ? 'outputs' : 'surfaces', file.name)]));
   await page.route('**/__topofit_fixture__/*', (route) => {
     const name = new URL(route.request().url()).pathname.split('/').pop();
@@ -218,7 +249,21 @@ test('real reconstructed cortex displays patch QC and clearly named patches', as
       async postMessage(job, ...rest) {
         if (!this.fixture) return super.postMessage(job, ...rest);
         const loaded = await Promise.all(files.map(async (file) => ({ ...file, bytes: await (await fetch(`/__topofit_fixture__/${file.name}`)).arrayBuffer() })));
-        this.onmessage({ data: { type: 'result', files: loaded, provenance: { surfaceVertices: 245762, surfaceAnalysis: analysis }, elapsedSeconds: 0 } });
+        const vertices = {};
+        const faces = {};
+        for (const file of loaded.filter((file) => /^(lh|rh)-(white|pial|registration)$/.test(file.id))) {
+          const bytes = new Uint8Array(file.bytes);
+          let offset = 3;
+          for (let lines = 0; lines < 2;) if (bytes[offset++] === 10) lines += 1;
+          const view = new DataView(file.bytes);
+          const vertexCount = view.getInt32(offset);
+          const faceCount = view.getInt32(offset + 4);
+          offset += 8;
+          vertices[file.name] = Float32Array.from({ length: vertexCount * 3 }, (_, i) => view.getFloat32(offset + i * 4));
+          offset += vertexCount * 12;
+          if (file.id.endsWith('-white')) faces[file.id.slice(0, 2)] = Int32Array.from({ length: faceCount * 3 }, (_, i) => view.getInt32(offset + i * 4));
+        }
+        this.onmessage({ data: { type: 'result', files: loaded, surfaces: { vertices, faces }, provenance: { surfaceVertices: 245762, surfaceAnalysis: analysis, runtime: {}, outputSha256: {} }, elapsedSeconds: 0 } });
       }
     };
   }, { files, analysis });
@@ -240,10 +285,81 @@ test('real reconstructed cortex displays patch QC and clearly named patches', as
   await expect(page.locator('#viewerError')).toBeHidden();
   await expect(page.locator('.nd-view-tab.active')).toHaveText('3-Plane');
   await page.screenshot({ path: testInfo.outputPath('real-selected-patch.png') });
+  const canvas = await page.locator('#gl1').boundingBox();
+  for (const [column, row] of [[0, 0], [1, 0], [0, 1]]) {
+    expect(await patchPixels(page, {
+      x: canvas.x + column * canvas.width / 2,
+      y: canvas.y + row * canvas.height / 2,
+      width: Math.floor(canvas.width / 2),
+      height: Math.floor(canvas.height / 2),
+    }), 'The real cortical patch must be highlighted in each intersecting slice').toBeGreaterThan(4);
+  }
+  const axial = {
+    x: canvas.x,
+    y: canvas.y + canvas.height / 2,
+    width: Math.floor(canvas.width / 2),
+    height: Math.floor(canvas.height / 2),
+  };
+  await page.mouse.move(axial.x + axial.width / 3, axial.y + axial.height / 2);
+  for (let i = 0; i < 30; i += 1) await page.mouse.wheel(0, 120);
+  await expect.poll(() => patchPixels(page, axial), { message: 'Scrolling away must hide the real cortical patch on that slice' }).toBe(0);
+  await page.screenshot({ path: testInfo.outputPath('real-patch-scrolled-away.png') });
+  await page.locator('#surfaceAnalysisSettings > summary').click();
+  await page.locator('#findPatches').check();
+  await page.locator('#patchCount').fill('1');
+  await page.locator('#patchHemisphere').selectOption('rh');
+  await page.locator('#analyzeButton').click();
+  await expect(page.locator('#statusText')).toContainText('Surface analysis ready', { timeout: 90_000 });
+  await expect(page.getByText('Right flat patch 1', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('Left flat patch 1', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('Right flat patch 2', { exact: true })).toHaveCount(0);
+  await page.getByText('Right flat patch 1', { exact: true }).locator('..').getByRole('button', { name: 'View', exact: true }).click();
+  await expect(page.locator('#imageLabel')).toContainText('Right flat patch 1');
+  await page.screenshot({ path: testInfo.outputPath('reanalyzed-right-patch.png') });
   for (const label of ['Left white surface', 'Right pial surface']) {
     const row = page.locator('.nd-volume-toggle').filter({ hasText: label });
     await row.getByRole('checkbox').check();
     await expect(page.locator('#imageLabel')).toContainText(label.includes('white') ? 'WHITE' : 'PIAL');
     await expect(page.locator('#viewerError')).toBeHidden();
   }
+});
+
+test('analysis runs in its own worker and can be repeated or cancelled without reconstruction', async ({ page }) => {
+  const modelRequests = [];
+  page.on('request', (request) => { if (/\.onnx(?:[?]|$)/.test(request.url())) modelRequests.push(request.url()); });
+  await deliverSurfaces(page);
+  await expect(page.locator('#analyzeButton')).toBeEnabled();
+  await page.locator('#analyzeButton').click();
+  await expect(page.locator('#surfaceAnalysisSettings')).toHaveAttribute('open', '');
+  await page.locator('#estimateNormals').check();
+  await page.locator('#analyzeButton').click();
+  await expect(page.locator('#statusText')).toContainText('Surface analysis ready');
+  await expect(page.getByText('Left mid-surface normals', { exact: true })).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Show Left white surface' })).toBeVisible();
+  await page.locator('.nd-volume-toggle').filter({ hasText: 'Processing manifest' }).getByRole('button', { name: 'View', exact: true }).click();
+  await expect(page.locator('#infoDialog')).toContainText('original-qc');
+  await expect(page.locator('#infoDialog')).toContainText('lh.mid.normals.csv');
+  await page.locator('#infoDialog').getByRole('button', { name: 'Close', exact: true }).click();
+  await page.route('**/fsaverage-cortex.bin', () => {});
+  await page.locator('#findPatches').check();
+  await page.locator('#analyzeButton').click();
+  await expect(page.locator('#statusText')).toContainText('Analyzing reconstructed surfaces');
+  await page.locator('#cancelButton').click();
+  await expect(page.locator('#statusText')).toContainText('Surface analysis cancelled');
+  await expect(page.getByText('Left mid-surface normals', { exact: true })).toBeVisible();
+  await expect(page.locator('#analyzeButton')).toBeEnabled();
+  await page.unroute('**/fsaverage-cortex.bin');
+  await page.route('**/fsaverage-cortex.bin', (route) => route.fulfill({ body: '' }));
+  await page.locator('#analyzeButton').click();
+  await expect(page.locator('#statusText')).toContainText('Model size mismatch');
+  await expect(page.getByText('Left mid-surface normals', { exact: true })).toBeVisible();
+  await page.locator('#findPatches').uncheck();
+  await page.locator('#analyzeButton').click();
+  await expect(page.locator('#statusText')).toContainText('Surface analysis ready');
+  await expect(page.getByText('Left mid-surface normals', { exact: true })).toHaveCount(1);
+  expect(await page.evaluate(() => window.reconstructionRuns)).toBe(1);
+  expect(modelRequests).toEqual([]);
+  await page.locator('#imageInput').setInputFiles(scan());
+  await expect(page.locator('#analyzeButton')).toBeDisabled();
+  await expect(page.locator('#resultList .nd-volume-toggle')).toHaveCount(0);
 });

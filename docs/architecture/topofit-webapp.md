@@ -38,6 +38,10 @@ export type TopofitFile = Readonly<{
 
 export type TopofitResult = Readonly<{
   files: readonly TopofitFile[];
+  surfaces: Readonly<{
+    vertices: Record<`${"lh" | "rh"}.${"white" | "pial" | "registration"}`, Float32Array>;
+    faces: Record<"lh" | "rh", Int32Array>;
+  }>;
   provenance: Readonly<Record<string, unknown>>;
 }>;
 
@@ -137,3 +141,16 @@ The controlled `ds000001` comparison passed with 0.052–0.062 mm mean correspon
 ## First gate
 
 Before registry activation, one reference brain must complete through the production browser worker with full order-6 topology and pass the controlled comparison against the pinned container. The production-preprocessing comparison must also be captured and reviewed, but it is not judged against the controlled inference thresholds because the two conformers intentionally use different interpolation kernels. Any measured difference stays visible in the checked-in report and the app remains explicitly experimental.
+
+## Analysis after reconstruction
+
+The reconstruction worker transfers the surface vertex and face buffers to the
+browser along with its output files. The browser retains one reconstruction for
+the current scan. **Run surface analysis** starts `analysis-worker.js`, which calls
+`runSurfaceAnalysis()` with copies of the retained geometry, the source image,
+and the selected options. This worker imports no ONNX execution runtime.
+
+Successful analysis replaces the previous analysis rows and manifest, preserving
+the anatomical surface and source-grid QC downloads. Failure and cancellation
+leave existing results intact. Loading another scan or starting a new
+reconstruction clears the retained geometry and disables the analysis action.

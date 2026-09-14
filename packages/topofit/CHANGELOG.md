@@ -1,5 +1,11 @@
 # @neurodesk/topofit
 
+## 0.6.20260914
+
+### Minor Changes
+
+- Add a Run surface analysis action after cortex reconstruction. Retain the current scan's surface geometry and run normals or flat-patch analysis in a separate cancellable worker without repeating neural inference. Allow new patch settings and native-grid ROIs, replace prior analysis outputs and manifest metadata on success, and preserve reconstruction and existing outputs on cancellation or failure.
+
 ## 0.5.20260914
 
 ### Patch Changes
