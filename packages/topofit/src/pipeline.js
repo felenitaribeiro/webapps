@@ -256,7 +256,35 @@ export async function runTopofit(options) {
     bytes: encoder.encode(`${JSON.stringify(provenance, null, 2)}\n`).buffer,
   });
   onProgress(1, 'Cortical surfaces ready');
-  return { files, provenance, elapsedSeconds: (performance.now() - started) / 1000 };
+  return { files, provenance, surfaces: { vertices, faces }, elapsedSeconds: (performance.now() - started) / 1000 };
+}
+
+export async function runSurfaceAnalysis({ buffer, surfaces, provenance: reconstruction, estimateNormals, patches, roiBuffer, loadAtlas, cortexAtlasSha256, onProgress = () => {} }) {
+  if (!estimateNormals && !patches) throw new Error('Choose normals, flat patches, or both.');
+  const started = performance.now();
+  const source = readVolume(buffer);
+  const roi = readPatchRoi(roiBuffer, source);
+  onProgress(0.05, 'Analyzing reconstructed surfaces…');
+  const result = await analyzeSurfaces({
+    source, ...surfaces, estimateNormals, patches, roi, loadAtlas,
+    onProgress: (message) => onProgress(0.5, message),
+  });
+  const provenance = structuredClone(reconstruction);
+  delete provenance.roiSha256;
+  delete provenance.runtime.cortexAtlasSha256;
+  provenance.surfaceAnalysis = result.analysis;
+  provenance.outputSha256 = Object.fromEntries(
+    [...Object.keys(surfaces.vertices), 'topofit_qc.nii'].map((name) => [name, reconstruction.outputSha256[name]]),
+  );
+  if (roi) provenance.roiSha256 = await sha256(roiBuffer);
+  if (patches) provenance.runtime.cortexAtlasSha256 = cortexAtlasSha256;
+  for (const file of result.files) provenance.outputSha256[file.name] = await sha256(file.bytes);
+  result.files.push({
+    id: 'provenance', name: 'topofit_manifest.json', mediaType: 'application/json',
+    bytes: encoder.encode(`${JSON.stringify(provenance, null, 2)}\n`).buffer,
+  });
+  onProgress(1, 'Surface analysis ready');
+  return { files: result.files, provenance, elapsedSeconds: (performance.now() - started) / 1000 };
 }
 
 const encoder = new TextEncoder();

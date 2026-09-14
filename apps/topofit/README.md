@@ -34,5 +34,14 @@ Results include individual patch surfaces, patch-and-normal QC, measurements
 and paired ribbon geometry. Patches are labeled "Left flat patch 1", "Right flat patch 1", and so on.
 Select one to center the 3-Plane viewer on it. Meshes are clipped to a 1 mm
 band around each slice so scrolling away does not project the patch onto other regions.
+Selected patches use yellow, two-sided slice intersections so the brain image
+and surface orientation do not hide the patch.
 Download the normals CSV or geometry JSON for local analysis. The output schema
 and OpenRecon comparison command are documented in `packages/topofit/README.md`.
+
+After reconstruction, edit **Surface analysis** and select **Run surface analysis**
+to run or repeat normals and patch analysis on the existing cortex. The action
+becomes available after a successful reconstruction. It uses a separate worker
+and does not run the neural models again. New analysis results replace previous
+analysis results and update the processing manifest; cancellation or failure
+keeps the previous outputs. Loading another scan clears the saved reconstruction.

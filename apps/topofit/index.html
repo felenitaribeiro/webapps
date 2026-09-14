@@ -86,6 +86,7 @@
             </div>
           </details>
           <button id="runButton" class="nd-btn nd-btn-primary" type="button" disabled>Reconstruct cortex</button>
+          <button id="analyzeButton" class="nd-btn nd-btn-secondary" type="button" disabled>Run surface analysis</button>
         </div>
       </details>
       <details class="nd-sidebar-section" id="outputSection">
@@ -107,7 +108,7 @@
       <span class="nd-status-label">Status</span>
       <span id="statusText" class="nd-status-text" role="status" aria-live="polite">Ready · choose an image to begin</span>
       <span id="elapsed" class="nd-status-elapsed"></span>
-      <progress id="progress" max="1" value="0" aria-label="Reconstruction progress"></progress>
+      <progress id="progress" max="1" value="0" aria-label="Processing progress"></progress>
       <button id="cancelButton" class="nd-btn-cancel" type="button" aria-label="Cancel reconstruction" hidden>×</button>
     </footer>
     <template id="aboutContent">

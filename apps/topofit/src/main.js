@@ -40,6 +40,9 @@ let importedImages = [];
 let timer;
 let started;
 let surfaceAnalysis;
+let reconstruction;
+let operation = 'Reconstruction';
+let preparation;
 let meshSceneReady = false;
 let viewerBusy = false;
 const loadedMeshes = new Map();
@@ -133,7 +136,8 @@ function setBusy(value) {
   busy = value;
   for (const input of $('controls').querySelectorAll('input, select')) input.disabled = value;
   $('exampleButton').disabled = value;
-  $('runButton').disabled = value || !source;
+  $('runButton').disabled = value || viewerBusy || !source;
+  $('analyzeButton').disabled = value || viewerBusy || !reconstruction;
   $('cancelButton').hidden = !value;
   if (!value) clearInterval(timer);
 }
@@ -142,6 +146,7 @@ function setViewerBusy(value) {
   viewerBusy = value;
   for (const control of $('resultList').querySelectorAll('button, input')) control.disabled = value;
   $('runButton').disabled = value || busy || !source;
+  $('analyzeButton').disabled = value || busy || !reconstruction;
 }
 
 async function ensureViewer() {
@@ -252,12 +257,16 @@ async function showResult(stage) {
       const firstPatch = stage === 'patch-qc' && Object.values(surfaceAnalysis?.flat_patches || {})[0];
       if (firstPatch) nv.setCrosshairPos(firstPatch.center_ras_mm);
     } else {
+      const patch = surfaceAnalysis?.flat_patches?.[stage];
       await nv.loadVolumes([{ url: source, name: source.name }]);
-      await nv.loadMeshes([{ url: file, name: file.name }]);
+      await nv.loadMeshes([{
+        url: file,
+        name: file.name,
+        ...(patch ? { color: [1, 0.85, 0, 1], sliceShaderType: 'crosscut' } : {}),
+      }]);
       nv.sliceType = SLICE_TYPE.MULTIPLANAR;
       $('imageLabel').textContent = resultLabel(stage);
       toolbar.setActive('multiplanar');
-      const patch = surfaceAnalysis?.flat_patches?.[stage];
       if (patch) {
         nv.setCrosshairPos(patch.center_ras_mm);
         $('imageLabel').textContent = `${resultLabel(stage)} · ${patch.area_mm2.toFixed(1)} mm² · RMS ${patch.rms_distance_mm.toFixed(3)} mm`;
@@ -279,6 +288,7 @@ async function load(file) {
   try {
     if (!/\.nii(\.gz)?$/i.test(file.name)) throw new Error('Choose a .nii or .nii.gz image.');
     source = file;
+    reconstruction = null;
     outputs = new Map();
     results.render();
     $('outputSection').open = false;
@@ -345,8 +355,13 @@ $('exampleButton').onclick = async () => {
 $('findPatches').onchange = () => { $('patchSettings').hidden = !$('findPatches').checked; };
 $('patchRegion').onchange = () => { $('patchRoiField').hidden = $('patchRegion').value !== 'roi'; };
 
-$('runButton').onclick = async () => {
-  if (!source || busy || viewerBusy) return;
+async function run(analysisOnly = false) {
+  if (!source || busy || viewerBusy || (analysisOnly && !reconstruction)) return;
+  if (analysisOnly && !$('estimateNormals').checked && !$('findPatches').checked) {
+    $('surfaceAnalysisSettings').open = true;
+    status('Choose normals, flat patches, or both.', true);
+    return;
+  }
   if ($('findPatches').checked) {
     const invalid = [...$('surfaceAnalysisSettings').querySelectorAll('input[type="number"]')].find((input) => !input.checkValidity());
     if (invalid) {
@@ -355,6 +370,9 @@ $('runButton').onclick = async () => {
       return;
     }
   }
+  const currentPreparation = {};
+  preparation = currentPreparation;
+  operation = analysisOnly ? 'Surface analysis' : 'Reconstruction';
   let roiBuffer;
   if ($('findPatches').checked && $('patchRegion').value === 'roi') {
     setBusy(true);
@@ -363,6 +381,7 @@ $('runButton').onclick = async () => {
       if (images.length !== 1) throw new Error('Choose one ROI mask on the input image grid.');
       roiBuffer = await images[0].arrayBuffer();
     } catch (error) {
+      if (preparation !== currentPreparation) return;
       $('surfaceAnalysisSettings').open = true;
       $('patchQuality').open = true;
       status(error.message, true);
@@ -370,22 +389,29 @@ $('runButton').onclick = async () => {
       return;
     }
   }
-  outputs = new Map();
-  results.render();
+  if (preparation !== currentPreparation) return;
+  if (!analysisOnly) {
+    reconstruction = null;
+    outputs = new Map();
+    results.render();
+  }
   setBusy(true);
   $('progress').value = 0;
+  $('elapsed').textContent = '0 s';
   started = performance.now();
   timer = setInterval(() => {
     $('elapsed').textContent = `${Math.round((performance.now() - started) / 1000)} s`;
   }, 1000);
   try {
-    await showSource();
+    if (!analysisOnly) await showSource();
   } catch (error) {
     $('viewerError').hidden = false;
     $('viewerError').textContent = `Visualization unavailable: ${error.message}. Reconstruction can continue.`;
   }
-  if (!busy) return;
-  worker = new Worker(new URL('./inference-worker.js', import.meta.url), { type: 'module' });
+  if (!busy || preparation !== currentPreparation) return;
+  worker = analysisOnly
+    ? new Worker(new URL('./analysis-worker.js', import.meta.url), { type: 'module' })
+    : new Worker(new URL('./inference-worker.js', import.meta.url), { type: 'module' });
   const active = worker;
   worker.onmessage = async ({ data }) => {
     if (worker !== active) return;
@@ -401,9 +427,17 @@ $('runButton').onclick = async () => {
     }
     if (data.type === 'result') {
       surfaceAnalysis = data.provenance.surfaceAnalysis;
+      if (analysisOnly) outputs = new Map(reconstruction.files);
       for (const output of data.files) {
         if (output.id.endsWith('-registration')) continue;
         outputs.set(output.id, new File([output.bytes], output.name, { type: output.mediaType }));
+      }
+      if (!analysisOnly && data.surfaces) {
+        reconstruction = {
+          surfaces: data.surfaces,
+          provenance: data.provenance,
+          files: new Map([...outputs].filter(([id]) => surfaceStages.has(id) || id === 'qc' || id === 'provenance')),
+        };
       }
       results.render(Object.fromEntries([...outputs].map(([id]) => [
         id,
@@ -414,19 +448,21 @@ $('runButton').onclick = async () => {
       active.terminate();
       worker = null;
       setBusy(false);
-      status(`Surfaces ready · ${data.provenance.surfaceVertices.toLocaleString()} vertices per hemisphere · ${Math.round(data.elapsedSeconds)} s`);
+      status(analysisOnly ? `Surface analysis ready · ${Math.round(data.elapsedSeconds)} s` : `Surfaces ready · ${data.provenance.surfaceVertices.toLocaleString()} vertices per hemisphere · ${Math.round(data.elapsedSeconds)} s`);
       if (surfaceAnalysis?.flat_patch_status === 'NO_PATCH_MEETS_CRITERIA') status('Surfaces ready · no cortical patch meets the selected criteria');
       await showResult(outputs.has('patch-qc') ? 'patch-qc' : 'qc');
     }
   };
   worker.onerror = (event) => {
+    if (worker !== active) return;
     active.terminate();
     worker = null;
     setBusy(false);
-    status(`Reconstruction stopped: ${event.message || 'worker failure'}`, true);
+    status(`${operation} stopped: ${event.message || 'worker failure'}`, true);
   };
   worker.postMessage({
     file: source,
+    ...(analysisOnly ? { surfaces: reconstruction.surfaces, provenance: reconstruction.provenance } : {}),
     model: $('model').value,
     conform: $('conform').checked,
     overlayThickness: Number($('thickness').value),
@@ -441,13 +477,17 @@ $('runButton').onclick = async () => {
     roiBuffer,
     assetBase,
   });
-};
+}
+
+$('runButton').onclick = () => void run();
+$('analyzeButton').onclick = () => void run(true);
 
 $('cancelButton').onclick = () => {
+  preparation = null;
   worker?.terminate();
   worker = null;
   setBusy(false);
   $('progress').value = 0;
-  status('Reconstruction cancelled. Your original image is unchanged.');
+  status(`${operation} cancelled. ${reconstruction ? 'Your reconstructed surfaces remain available.' : 'Your original image is unchanged.'}`);
 };
 window.addEventListener('pagehide', () => worker?.terminate());

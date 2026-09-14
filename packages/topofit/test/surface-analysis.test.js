@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { runSurfaceAnalysis } from '../src/pipeline.js';
 import { analyzeSurfaces, readPatchRoi } from '../src/surface-analysis.js';
 import { triangleVoxelMask } from '../src/analysis-qc.js';
 import { writeInt16Nifti } from '../src/qc.js';
@@ -87,4 +88,35 @@ test('triangle voxelization fills interiors and retains oblique coordinate trans
   const rotated = { ...source, affine: [[0, -1, 0, 20], [1, 0, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]] };
   const points = Float64Array.from([18, 2, 3, 18, 8, 3, 12, 2, 3]);
   assert.deepEqual(triangleVoxelMask(rotated, points, new Int32Array([0, 1, 2])), mask);
+});
+
+test('post-reconstruction analysis replaces prior products and provenance without changing the surfaces', async () => {
+  const data = fixture();
+  const surfaces = { vertices: data.vertices, faces: data.faces };
+  const before = structuredClone(surfaces);
+  const buffer = writeInt16Nifti(data.source, new Int16Array(8000), 'scan');
+  const provenance = {
+    inputSha256: 'original-input', runtime: { cortexAtlasSha256: 'previous-atlas' }, roiSha256: 'previous-roi',
+    outputSha256: Object.fromEntries([...Object.keys(data.vertices), 'topofit_qc.nii', 'obsolete.nii'].map((name) => [name, `hash-${name}`])),
+  };
+  const first = await runSurfaceAnalysis({ buffer, surfaces, provenance, patches: { radius: 10, hemisphere: 'lh', count: 1, minAreaFraction: 0.1 }, estimateNormals: true, loadAtlas: data.loadAtlas, cortexAtlasSha256: 'atlas' });
+  assert.deepEqual(Object.keys(first.provenance.surfaceAnalysis.flat_patches), ['LH01']);
+  assert.equal(first.provenance.runtime.cortexAtlasSha256, 'atlas');
+  assert.equal(first.provenance.roiSha256, undefined);
+  const second = await runSurfaceAnalysis({ buffer, surfaces, provenance: first.provenance, estimateNormals: true });
+  assert.equal(second.provenance.surfaceAnalysis.flat_patch_status, 'NOT_REQUESTED');
+  assert.equal(second.provenance.runtime.cortexAtlasSha256, undefined);
+  assert.equal(second.provenance.outputSha256['LH01.mid.white'], undefined);
+  assert.equal(second.provenance.outputSha256['obsolete.nii'], undefined);
+  assert.equal(second.provenance.outputSha256['topofit_qc.nii'], 'hash-topofit_qc.nii');
+  assert.equal(second.provenance.inputSha256, 'original-input');
+  assert.deepEqual(surfaces, before);
+  assert.equal(provenance.roiSha256, 'previous-roi');
+  for (const file of second.files.filter((file) => file.id !== 'provenance')) {
+    const digest = await crypto.subtle.digest('SHA-256', file.bytes);
+    const hash = Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, '0')).join('');
+    assert.equal(second.provenance.outputSha256[file.name], hash);
+  }
+  const saved = JSON.parse(new TextDecoder().decode(second.files.find((file) => file.id === 'provenance').bytes));
+  assert.deepEqual(saved, second.provenance);
 });
