@@ -111,12 +111,6 @@ main,
 
 .site-nav a { text-decoration: none; }
 .site-nav a:hover { color: var(--hero-text); }
-.site-nav > span {
-  padding: 0.38rem 0.7rem;
-  border: 1px solid #495047;
-  border-radius: 8px;
-  color: var(--green-light);
-}
 
 .hero {
   position: relative;
@@ -339,7 +333,13 @@ h1 {
 .app-card > p { margin: 0.8rem 0 1.6rem; color: var(--muted); line-height: 1.55; }
 
 .app-card__tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: auto 0 0; padding: 0; list-style: none; }
-.app-card__tags li { padding: 0.28rem 0.48rem; border-radius: 5px; background: var(--green-pale); color: var(--green-light); font-size: 0.68rem; }
+.app-card__tags li {
+  padding: 0.28rem 0.48rem;
+  border-radius: 5px;
+  background: var(--green-pale);
+  color: var(--green-dark);
+  font-size: 0.68rem;
+}
 
 .no-results { padding: 7rem 1rem 10rem; color: var(--text); text-align: center; }
 .no-results > div { width: 4rem; margin: 0 auto 1.25rem; color: var(--green-dark); font-size: 3rem; }
