@@ -1,5 +1,16 @@
 # greedy
 
+## 0.2.20260914
+
+### Minor Changes
+
+- Add offline Greedy native packaging for Linux x64, Windows x64 and Apple ARM, with an isolated signed and notarized macOS installer release. Add an npm-installable CLI that bundles native binaries and validates installed packages on each target. Document the catalog-wide CLI rollout and remaining pipeline ports.
+
+### Patch Changes
+
+- Updated dependencies
+  - @neurodesk/greedy@0.2.20260914
+
 ## 0.1.20260914
 
 ### Patch Changes
@@ -11,7 +22,6 @@
   - @neurodesk/greedy@0.1.20260914
   - @neurodesk/webapp-components@0.1.5
   - @neurodesk/runtime-support@0.1.2
-
 
 ### Patch Changes
 
