@@ -39,6 +39,8 @@ export function injectCompositeTheme(html, {
   moreAppsHref = '../',
   iconHref = '../neurodesk-logo.svg',
   information,
+  standaloneHref,
+  componentsHref,
 }) {
   if (typeof html !== 'string') throw new TypeError('html must be a string');
   if (!appIdPattern.test(appId)) throw new Error(`Invalid app id: ${appId}`);
@@ -118,10 +120,22 @@ export function injectCompositeTheme(html, {
 
   if (!/data-neurodesk-app-shell(?:\s|=|>)/i.test(themed)) {
     const sourceHref = `https://github.com/neurodesk/webapps/tree/main/apps/${appId}`;
+    const standaloneAttributes = `${standaloneHref ? ` data-standalone-href="${escapeAttribute(standaloneHref)}"` : ''}${componentsHref ? ` data-components-href="${escapeAttribute(componentsHref)}"` : ''}`;
     themed = themed.replace(
       /<\/head>/i,
-      `  <script type="module" src="${escapeAttribute(shellHref)}" data-neurodesk-app-shell data-app-id="${escapeAttribute(appId)}" data-app-shell="${escapeAttribute(shell)}" data-app-title="${escapeAttribute(title)}" data-app-description="${escapeAttribute(description)}" data-app-version="${escapeAttribute(version)}" data-ga4-measurement-id="${escapeAttribute(measurementId)}" data-analytics-href="${escapeAttribute(analyticsHref)}" data-more-apps-href="${escapeAttribute(moreAppsHref)}" data-source-href="${escapeAttribute(sourceHref)}"${url ? ` data-app-url="${escapeAttribute(url)}"` : ''}></script>\n</head>`,
+      `  <script type="module" src="${escapeAttribute(shellHref)}" data-neurodesk-app-shell data-app-id="${escapeAttribute(appId)}" data-app-shell="${escapeAttribute(shell)}" data-app-title="${escapeAttribute(title)}" data-app-description="${escapeAttribute(description)}" data-app-version="${escapeAttribute(version)}" data-ga4-measurement-id="${escapeAttribute(measurementId)}" data-analytics-href="${escapeAttribute(analyticsHref)}" data-more-apps-href="${escapeAttribute(moreAppsHref)}" data-source-href="${escapeAttribute(sourceHref)}"${standaloneAttributes}${url ? ` data-app-url="${escapeAttribute(url)}"` : ''}></script>\n</head>`,
     );
+  }
+
+  // Composite builds may receive an already themed standalone app. Update its
+  // resource locations before removing the app-local copies during assembly.
+  for (const [name, value] of [['standalone-href', standaloneHref], ['components-href', componentsHref]]) {
+    if (value === undefined) continue;
+    themed = themed.replace(/<script\b[^>]*\bdata-neurodesk-app-shell(?:\s|=|>)[^>]*>/i, tag => {
+      const attribute = ` data-${name}="${escapeAttribute(value)}"`;
+      const existing = new RegExp(`\\sdata-${name}="[^"]*"`, 'i');
+      return existing.test(tag) ? tag.replace(existing, attribute) : tag.replace(/>$/, `${attribute}>`);
+    });
   }
 
   // App information (packages under the hood, method citations and the shared

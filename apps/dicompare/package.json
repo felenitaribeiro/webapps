@@ -1,6 +1,6 @@
 {
   "name": "dicompare",
-  "version": "0.12.20260910",
+  "version": "0.13.20260915",
   "description": "DICOM compliance validation tool for medical imaging",
   "author": {
     "name": "Ashley Stewart",
@@ -45,7 +45,7 @@
     "jszip": "^3.10.1",
     "lucide-react": "^0.534.0",
     "marked": "^17.0.1",
-    "pyodide": "^0.27.0",
+    "pyodide": "0.27.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-markdown": "^10.1.0",

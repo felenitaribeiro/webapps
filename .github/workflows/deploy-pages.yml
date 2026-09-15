@@ -44,6 +44,8 @@ jobs:
         env:
           GA4_PROPERTY_ID: ${{ secrets.GA4_PROPERTY_ID }}
           GA4_SERVICE_ACCOUNT_KEY: ${{ secrets.GA4_SERVICE_ACCOUNT_KEY }}
+      - name: Require released offline applications for every catalog entry
+        run: node scripts/desktop/check-published.mjs
       - run: pnpm build
       - run: pnpm audit:artifacts
       - uses: actions/configure-pages@v6
@@ -74,6 +76,10 @@ jobs:
           pnpm exec playwright install --with-deps chromium
       - name: Verify deployed cross-origin isolation
         run: pnpm test:deployed
+        env:
+          BASE_URL: ${{ steps.deployment.outputs.page_url }}
+      - name: Verify standalone downloads in every deployed application
+        run: node test/standalone-downloads.smoke.mjs
         env:
           BASE_URL: ${{ steps.deployment.outputs.page_url }}
       - name: Verify deployed NIfTI and DICOM scan pickers

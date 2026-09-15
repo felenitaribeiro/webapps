@@ -18,13 +18,13 @@ let pyodide: PyodideInstance | null = null;
 // Validation cache to avoid re-running validation for the same inputs
 const validationCache = new Map<string, any>();
 
-// Detect if running in Electron production (bundled app, no network required)
+const suiteOffline = navigator.userAgent.includes('NeurodeskOffline/1');
+
+// Detect the installed suite or the legacy dedicated Electron package.
 function isElectronProduction(): boolean {
-  // In Electron production, we load from file:// protocol
-  // In Electron dev, we load from http://localhost which still has network access
   return self.location.protocol === 'file:' ||
          self.location.protocol === 'app:' ||
-         self.location.hostname === '';
+         self.location.hostname === '' || suiteOffline;
 }
 
 // Detect if running in Electron at all (including dev mode)
@@ -39,9 +39,8 @@ function getPyodideBaseUrl(): string {
     // In Electron production, use bundled Pyodide
     // Worker is in assets/, pyodide is in pyodide/, so go up one level
     // We need absolute path for the pyodide.js import
-    const workerUrl = self.location.href;
-    const baseUrl = workerUrl.substring(0, workerUrl.lastIndexOf('/assets/') + 1);
-    return baseUrl + 'pyodide/';
+    if (suiteOffline) return new URL('/_offline/python/', self.location.origin).href;
+    return self.location.href.substring(0, self.location.href.lastIndexOf('/assets/') + 1) + 'pyodide/';
   }
   // In browser or Electron dev mode, use CDN
   return 'https://cdn.jsdelivr.net/pyodide/v0.27.0/full/';
@@ -50,9 +49,8 @@ function getPyodideBaseUrl(): string {
 // Get absolute URL for wheel files (for micropip)
 function getWheelBaseUrl(): string {
   if (isElectronProduction()) {
-    const workerUrl = self.location.href;
-    const baseUrl = workerUrl.substring(0, workerUrl.lastIndexOf('/assets/') + 1);
-    return baseUrl + 'pyodide/wheels/';
+    if (suiteOffline) return new URL('/_offline/python/wheels/', self.location.origin).href;
+    return self.location.href.substring(0, self.location.href.lastIndexOf('/assets/') + 1) + 'pyodide/wheels/';
   }
   return '';
 }
@@ -132,13 +130,8 @@ async function initializePyodide(requestId?: string): Promise<{ pyodideVersion: 
     console.log('[Worker] Pre-loading Pyodide packages for offline use...');
     // Load all required Pyodide built-in packages from local storage
     // These will be loaded from indexURL (our local pyodide/ folder)
-    await pyodide.loadPackage([
-      'numpy', 'pandas', 'scipy', 'tqdm', 'jsonschema',
-      'python-dateutil', 'pytz', 'six', 'attrs', 'packaging',
-      'typing-extensions', 'setuptools', 'pillow', 'matplotlib',
-      'contourpy', 'cycler', 'fonttools', 'kiwisolver', 'pyparsing',
-      'referencing', 'jsonschema-specifications', 'rpds-py', 'pyrsistent'
-    ]);
+    const config = suiteOffline ? await fetch(new URL('/_offline/python.json', self.location.origin)).then(response => response.json()) : null;
+    await pyodide.loadPackage(config?.packages || ['numpy', 'pandas', 'scipy', 'tqdm', 'jsonschema', 'packaging', 'typing-extensions', 'setuptools', 'matplotlib']);
     console.log('[Worker] Pyodide packages loaded from local storage');
   }
 
@@ -177,11 +170,8 @@ wheels_to_install = [
 ]
 
 for wheel in wheels_to_install:
-    try:
-        await micropip.install(wheel)
-        print(f"[Worker] Installed {wheel}")
-    except Exception as e:
-        print(f"[Worker] Warning: Could not install {wheel}: {e}")
+    await micropip.install(wheel)
+    print(f"[Worker] Installed {wheel}")
 
 import dicompare
 import dicompare.interface

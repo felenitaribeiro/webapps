@@ -29,12 +29,16 @@ try {
         if (await workspace.isVisible()) await workspace.click();
         const welcome = page.locator('#welcomeLater');
         if (await welcome.isVisible()) await welcome.click();
+        // Loading registration examples resets the Output disclosure. Exercise
+        // keyboard controls only after initialization has succeeded or failed.
+        if (['ants', 'greedy'].includes(app.id)) {
+          await expect(page.locator('#runButton:enabled, #statusText.error').first()).toBeVisible({ timeout: 60000 });
+        }
         // Allow the shell observer and disclosure transitions to settle after entry.
         await page.waitForTimeout(300);
         const bar = page.locator('.nd-app-bar:visible');
         for (const name of ['About', 'Cite', 'Privacy']) await expect(bar.getByRole('button', { name, exact: true })).toHaveCount(1);
-        const hasStandalone = await page.locator('[data-neurodesk-control="standalone"]').count() > 0;
-        await expect(bar.getByRole('button', { name: 'Standalone', exact: true })).toHaveCount(hasStandalone ? 1 : 0);
+        await expect(bar.getByRole('button', { name: 'Standalone', exact: true })).toHaveCount(1);
         for (const name of ['More Apps', 'GitHub']) await expect(bar.getByRole('link', { name, exact: true })).toHaveCount(1);
         await expect(bar.locator('[data-neurodesk-theme-toggle]')).toHaveCount(1);
         Object.assign(result, await page.evaluate(() => {
