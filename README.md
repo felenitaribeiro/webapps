@@ -90,6 +90,10 @@ versions, write changelog entries and synchronise embedded version strings
 (`pnpm release:dry-run` previews the plan; `--same-day` updates a version
 already dated today). The plan includes dependent apps and keeps SynthSR and
 SYNcro packages in sync with their apps. Shared packages retain semantic versions.
+MuscleMap pins `releaseSeries` in its app manifest to the supported upstream
+model series, currently `1.4`. Its webapp changesets advance only the date,
+including minor and major changesets. Change the series only when adopting a
+new upstream model release.
 After the change is merged, the manual `release-apps`
 workflow accepts selected or Git-affected catalog apps, then tests, builds, and
 publishes an independent standalone bundle for each app. Tags use

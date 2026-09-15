@@ -6,6 +6,7 @@
   <title>MuscleMap - Whole-Body Muscle Segmentation</title>
   <link rel="icon" type="image/png" href="img/musclemap-favicon.png" sizes="64x64">
   <link rel="stylesheet" href="vendor/webapp-components/src/styles/inference-workspace.css">
+  <link rel="stylesheet" href="vendor/webapp-components/src/styles/imaging-workspace.css">
   <link rel="stylesheet" href="css/styles.css">
   <!-- Resolve shared @neurodesk/webapp-components (workspace package) for the browser without a
        bundler. Files are vendored into web/vendor/ by `pnpm --filter musclemap vendor` (prebuild).
@@ -631,6 +632,24 @@
 <script src="nifti-js/index.js"></script>
 
 <!-- Main app -->
+<button id="standaloneButton" type="button" data-neurodesk-control="standalone" hidden>Run offline</button>
+<template id="offlineContent">
+  <div class="nd-dialog-highlight">
+    <strong>Run MuscleMap 1.4 on your computer</strong>
+    <p>Download the Neurodesk container while online, then run segmentation locally without an internet connection. The container includes the whole-body v1.4 model and its runtime dependencies.</p>
+  </div>
+  <h3>1. Set up Apptainer</h3>
+  <p>Use an x86_64 Linux computer or cluster with Apptainer installed. Follow the <a href="https://neurodesk.org/getting-started/neurocontainers/" target="_blank" rel="noopener noreferrer">Neurodesk container setup instructions</a> before going offline. Singularity users can replace <code>apptainer</code> with <code>singularity</code> in the command below.</p>
+  <h3>2. Download the container</h3>
+  <p><a href="https://zenodo.org/records/22168696/files/musclemap_1.4.0_20260827.simg?download=1">Download musclemap_1.4.0_20260827.simg</a> (6.54 GB). Keep the file on your computer or transfer it to your offline machine.</p>
+  <p>The <a href="https://zenodo.org/records/22168696" target="_blank" rel="noopener noreferrer">Zenodo release record</a> lists the MD5 checksum. Verify the download before use:</p>
+  <div id="offlineChecksumCommand"></div>
+  <h3>3. Run segmentation offline</h3>
+  <p>Put the container and your NIfTI scan in the same writable folder. Open a terminal in that folder and replace <code>image.nii.gz</code> with your scan's filename. This command uses the CPU and writes results to that folder.</p>
+  <div id="offlineRunCommand"></div>
+  <p>For an NVIDIA GPU with working host drivers, add <code>--nv</code> after <code>exec</code> and change <code>-g N</code> to <code>-g Y</code>.</p>
+</template>
+<script type="module" src="js/offline.js"></script>
 <script type="module" src="js/musclemap-app.js"></script>
 
 </body>
