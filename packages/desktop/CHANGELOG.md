@@ -6,6 +6,12 @@
 
 - Add Brain extraction with BET, MindGrab and SynthStrip, including the pinned model and an offline extraction check.
 
+## 0.3.20260915
+
+### Patch Changes
+
+- Add OpenRecon scanner-console package links for MuscleMap, QSMbly via QSMxT, Spinal Cord Toolbox, SynthSeg, TopoFit and VesselBoost.
+
 ## 0.2.20260915
 
 ### Minor Changes

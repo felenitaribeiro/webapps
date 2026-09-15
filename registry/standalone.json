@@ -268,7 +268,11 @@
           "apptainerUrl": "https://neurocontainers.neurodesk.workers.dev/musclemap_1.4.0_20260827.simg",
           "apptainerName": "musclemap_1.4.0_20260827"
         }
-      ]
+      ],
+      "openrecon": {
+        "recipe": "musclemap",
+        "label": "MuscleMap"
+      }
     },
     "vesselboost": {
       "desktop": true,
@@ -284,7 +288,11 @@
           "apptainerUrl": "https://neurocontainers.neurodesk.workers.dev/vesselboost_2.0.64_20260909.simg",
           "apptainerName": "vesselboost_2.0.64_20260909"
         }
-      ]
+      ],
+      "openrecon": {
+        "recipe": "vesselboost",
+        "label": "VesselBoost"
+      }
     },
     "spinalcordtoolbox": {
       "desktop": true,
@@ -300,7 +308,11 @@
           "apptainerUrl": "https://neurocontainers.neurodesk.workers.dev/spinalcordtoolbox_7.3.3_20260904.simg",
           "apptainerName": "spinalcordtoolbox_7.3.3_20260904"
         }
-      ]
+      ],
+      "openrecon": {
+        "recipe": "spinalcordtoolbox",
+        "label": "Spinal Cord Toolbox"
+      }
     },
     "calmar": {
       "desktop": true,
@@ -323,7 +335,11 @@
           "apptainerUrl": "https://neurocontainers.neurodesk.workers.dev/qsmbly_0.11.0_20260506.simg",
           "apptainerName": "qsmbly_0.11.0_20260506"
         }
-      ]
+      ],
+      "openrecon": {
+        "recipe": "qsmxt",
+        "label": "QSMxT"
+      }
     },
     "seedseg": {
       "desktop": true,
@@ -478,7 +494,11 @@
           "apptainerUrl": "https://neurocontainers.neurodesk.workers.dev/synthseg_8.2.0_20260902.simg",
           "apptainerName": "synthseg_8.2.0_20260902"
         }
-      ]
+      ],
+      "openrecon": {
+        "recipe": "synthseg",
+        "label": "SynthSeg"
+      }
     },
     "syncro": {
       "desktop": true,
@@ -609,7 +629,11 @@
           "dockerImage": "vnmd/topofit_0.5.1:candidate-1c960cec82947541d270e06099ab415933c9ea07",
           "dockerLabel": "Docker Hub · candidate build"
         }
-      ]
+      ],
+      "openrecon": {
+        "recipe": "topofit",
+        "label": "TopoFit"
+      }
     },
     "fireants": {
       "desktop": true,
