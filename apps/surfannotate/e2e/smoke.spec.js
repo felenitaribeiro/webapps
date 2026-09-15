@@ -1581,10 +1581,70 @@ test('removing an ROI gives its vertices back to the surface', async ({ page }) 
   expect(await page.evaluate(() => window.__surfannotate.excluded)).toBe(null);
 });
 
+test('every saved ROI can be written to one file, as .annot and as .label.gii', async ({ page }) => {
+  await loadFlat(page);
+  await expect(page.locator('#exportAnnot')).toBeDisabled();
+  await saveStrip(page, 2, 'V1');
+  await expect(page.locator('#exportAnnot')).toBeEnabled();
+  await saveStrip(page, 5, 'V2');
+  const sizes = await areaSizes(page);
+  const claimed = sizes.reduce((total, roi) => total + roi.n, 0);
+  await page.fill('#parcellationName', 'retinotopy');
+
+  const readDownload = async (button) => {
+    const download = page.waitForEvent('download');
+    await page.locator(button).click();
+    const file = await download;
+    const chunks = [];
+    for await (const chunk of await file.createReadStream()) chunks.push(chunk);
+    return { name: file.suggestedFilename(), bytes: Buffer.concat(chunks) };
+  };
+
+  // .annot: big-endian, vertex count first, then (vertex, packed colour) pairs
+  // followed by the colour table with one entry per ROI.
+  const annot = await readDownload('#exportAnnot');
+  expect(annot.name).toBe('lh.retinotopy.annot');
+  expect(annot.bytes.readInt32BE(0)).toBe(1681);
+  const packed = new Map();
+  for (let v = 0; v < 1681; v++) {
+    const value = annot.bytes.readInt32BE(4 + v * 8 + 4);
+    packed.set(value, (packed.get(value) || 0) + 1);
+  }
+  expect(packed.get(0)).toBe(1681 - claimed);
+  expect(packed.size).toBe(3, 'unlabelled plus one colour per ROI');
+  const table = annot.bytes.toString('latin1', 4 + 1681 * 8);
+  expect(table).toContain('V1\0');
+  expect(table).toContain('V2\0');
+
+  // .label.gii: one Int32 per vertex with a label table naming every ROI.
+  const gifti = await readDownload('#exportAllGifti');
+  expect(gifti.name).toBe('lh.retinotopy.label.gii');
+  const xml = gifti.bytes.toString('utf8');
+  expect(xml).toContain('<![CDATA[V1]]>');
+  expect(xml).toContain('<![CDATA[V2]]>');
+  expect(xml).toContain('<Label Key="2"');
+  const data = Buffer.from(/<Data>([^<]*)<\/Data>/.exec(xml)[1], 'base64');
+  const labels = new Int32Array(data.buffer, data.byteOffset, data.length / 4);
+  expect(labels.length).toBe(1681);
+  expect(labels.filter((key) => key > 0).length).toBe(claimed);
+  expect(new Set(labels).size).toBe(3);
+  await expect(page.locator('#statusText')).toContainText('2 ROIs');
+});
+
 test('a selected ROI is what the export buttons write', async ({ page }) => {
   await loadFlat(page);
   await saveStrip(page, 2, 'V1');
-  await roiRows(page).first().locator('.layer-name').click();
+  const row = roiRows(page).first();
+  await expect(row).not.toHaveClass(/export-target/);
+  await row.locator('.layer-name').click();
+
+  // The selection has to be unmistakable, because it changes what a download
+  // contains: a solid row style, and the export hint names the ROI. The row
+  // is 320px wide with four buttons in it, so it is colour that carries this,
+  // not a label — a text tag left one letter of the name visible.
+  await expect(row).toHaveClass(/export-target/);
+  await expect(row.locator('.layer-name')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#exportNameHint')).toContainText('Exporting the saved ROI V1');
 
   await expect(page.locator('#exportLabel')).toBeEnabled();
   const download = page.waitForEvent('download');
@@ -1597,6 +1657,11 @@ test('a selected ROI is what the export buttons write', async ({ page }) => {
   for await (const chunk of stream) chunks.push(chunk);
   const lines = Buffer.concat(chunks).toString('utf8').trimEnd().split('\n');
   expect(Number(lines[1])).toBe(82, 'the saved region, not an empty one');
+
+  // Clicking the name again hands the export back to the region being drawn.
+  await row.locator('.layer-name').click();
+  await expect(row).not.toHaveClass(/export-target/);
+  await expect(page.locator('#exportNameHint')).not.toContainText('Exporting the saved ROI');
 });
 
 test('ROIs follow the topology, like the ROI being drawn', async ({ page }) => {
@@ -1949,7 +2014,7 @@ test('removing the last surface disarms the controls instead of crashing', async
   await expect(surfaceRows(page)).toHaveCount(0);
 
   for (const id of ['undoPoint', 'closePath', 'closeOnEdge', 'fillRegion', 'clearRoi',
-    'saveRoi', 'exportLabel', 'exportGifti', 'exportPoints']) {
+    'saveRoi', 'exportLabel', 'exportGifti', 'exportPoints', 'exportAnnot', 'exportAllGifti']) {
     await expect(page.locator(`#${id}`), `#${id} must be disabled`).toBeDisabled();
   }
   await expect(page.locator('#flipRegion')).toBeHidden();

@@ -38,6 +38,8 @@ import {
 
 import { writeFreeSurferLabel, labelToValues } from './io/freesurferLabel.js';
 import { writeGiftiLabel, maskToLabelArray } from './io/gifti.js';
+import { writeFreeSurferAnnot, uniqueAnnotColors } from './io/freesurferAnnot.js';
+import { parcellationLabels } from './io/parcellationExport.js';
 import { writePointsJson, hashTriangles } from './io/points.js';
 import { isCurvFormat, readCurvValues } from './io/freesurferCurv.js';
 import {
@@ -144,6 +146,9 @@ const ui = {
   exportLabel: el('exportLabel'),
   exportGifti: el('exportGifti'),
   exportPoints: el('exportPoints'),
+  parcellationName: el('parcellationName'),
+  exportAnnot: el('exportAnnot'),
+  exportAllGifti: el('exportAllGifti'),
   exportHint: el('exportHint'),
   statusText: el('statusText'),
   vertexReadout: el('vertexReadout'),
@@ -535,11 +540,12 @@ function selectRoi(id) {
   const roi = state.rois.find((candidate) => candidate.id === id);
   if (roi && state.selectedRoiId === id) {
     ui.roiName.value = roi.name;
-    showExportName();
     setStatus(`${roi.name} selected — the export buttons will write it.`);
   } else {
     setStatus('Export will write the region being drawn.');
   }
+  // renderLayerLists refreshes the export hint, so deselecting, removing or
+  // reopening the selected ROI all clear "Exporting the saved ROI …" too.
   renderLayerLists();
   repaint();
 }
@@ -852,6 +858,8 @@ async function init() {
   ui.exportLabel.addEventListener('click', exportFreeSurferLabel);
   ui.exportGifti.addEventListener('click', exportGiftiLabel);
   ui.exportPoints.addEventListener('click', exportPoints);
+  ui.exportAnnot.addEventListener('click', exportAnnot);
+  ui.exportAllGifti.addEventListener('click', exportAllGifti);
 
   document.addEventListener('keydown', (event) => {
     // Backspace and Delete are the undo shortcut for the viewer, but they are
@@ -1657,7 +1665,11 @@ function renderLayerLists() {
   const rois = savedRois();
   rois.forEach((roi, index) => {
     const item = document.createElement('li');
-    if (roi.id === state.selectedRoiId) item.classList.add('selected');
+    const isTarget = roi.id === state.selectedRoiId;
+    // `selected` is the shared "active row" look; `export-target` is stronger,
+    // because this selection changes what a button *writes* and a pale tint
+    // was not enough to tell which ROI the next export would be.
+    if (isTarget) item.classList.add('selected', 'export-target');
     if (roi.error) item.classList.add('unresolved');
 
     const show = document.createElement('input');
@@ -1671,14 +1683,24 @@ function renderLayerLists() {
     order.className = 'layer-meta';
     order.textContent = `${index + 1}.`;
 
+    // The ROI's own fill colour, so the row and the surface can be matched.
+    const swatch = document.createElement('span');
+    swatch.className = 'layer-swatch';
+    swatch.style.background = cssColor(SAVED_ROI_COLORS[roi.colorIndex % SAVED_ROI_COLORS.length]);
+    swatch.setAttribute('aria-hidden', 'true');
+
     const name = document.createElement('button');
     name.type = 'button';
     name.className = 'layer-name';
     name.textContent = roi.name;
     name.title = roi.error
       ? `${roi.name}: ${ROI_ERRORS[roi.error] || roi.error}`
-      : `Export ${roi.name} instead of the region being drawn`;
+      : isTarget
+        ? `${roi.name} is what the export buttons write. Click to go back to the region being drawn`
+        : `Export ${roi.name} instead of the region being drawn`;
+    name.setAttribute('aria-pressed', String(isTarget));
     name.addEventListener('click', () => selectRoi(roi.id));
+
 
     const up = iconButton('\u25b2', `Move ${roi.name} up`, () => moveRoi(roi.id, -1));
     up.disabled = index === 0;
@@ -1688,7 +1710,7 @@ function renderLayerLists() {
       () => reopenRoi(roi.id));
     reopen.classList.add('layer-edit');
 
-    item.append(show, order, name, up, down, reopen,
+    item.append(show, order, swatch, name, up, down, reopen,
       makeRemoveButton(`Remove ${roi.name}`, () => removeRoi(roi.id)));
     ui.roiList.appendChild(item);
   });
@@ -1717,6 +1739,7 @@ function renderLayerLists() {
       makeRemoveButton(`Remove ${overlay.name}`, () => removeOverlay(overlay.id)));
     ui.overlayList.appendChild(item);
   }
+  showExportName();
 }
 
 /** Show a sensible number of decimals for whatever the overlay's units are. */
@@ -1805,11 +1828,26 @@ function showCoordinateSource() {
   ui.exportHint.classList.add('warn');
 }
 
-/** Live preview of the file name the export buttons will produce. */
+/** A palette entry in 0..1 as a CSS colour. */
+function cssColor([r, g, b]) {
+  return `rgb(${Math.round(r * 255)} ${Math.round(g * 255)} ${Math.round(b * 255)})`;
+}
+
+/**
+ * Live preview of the file name the export buttons will produce, and of what
+ * they will write — the selected ROI or the region being drawn.
+ */
 function showExportName() {
-  el('exportNameHint').textContent = state.mesh
-    ? `Files will be named ${exportStem()}.\u2026`
-    : 'Used in the file name and inside the file.';
+  const hint = el('exportNameHint');
+  if (!state.mesh) {
+    hint.textContent = 'Used in the file name and inside the file.';
+    return;
+  }
+  const chosen = selectedRoi();
+  hint.textContent = chosen
+    ? `Exporting the saved ROI ${chosen.name}, as ${exportStem()}.\u2026 ` +
+      'Click its name again to export the region being drawn instead.'
+    : `Files will be named ${exportStem()}.\u2026`;
 }
 
 function setMode(mode) {
@@ -2156,7 +2194,7 @@ function repaint() {
 function resetControls() {
   for (const control of [ui.undoPoint, ui.closePath, ui.closeOnEdge, ui.fillRegion,
     ui.clearRoi, ui.undoPointSelection, ui.clearPoints, ui.saveRoi,
-    ui.exportLabel, ui.exportGifti, ui.exportPoints]) {
+    ui.exportLabel, ui.exportGifti, ui.exportPoints, ui.exportAnnot, ui.exportAllGifti]) {
     control.disabled = true;
   }
   ui.flipRegion.hidden = true;
@@ -2231,6 +2269,12 @@ function syncControls() {
   ui.exportLabel.disabled = !exportable;
   ui.exportGifti.disabled = !exportable;
   ui.exportPoints.disabled = !hasPoints;
+  // The whole-parcellation exports write the list, so they follow the list,
+  // not the session: one resolved ROI is enough, a reopened one does not count
+  // until it is saved again.
+  const parcellable = savedRois().some((roi) => roi.mask);
+  ui.exportAnnot.disabled = !parcellable;
+  ui.exportAllGifti.disabled = !parcellable;
 
   ui.pointList.innerHTML = '';
   for (const point of session.points) {
@@ -2314,6 +2358,59 @@ function maskFromSession() {
   const mask = new Uint8Array(state.geometry.vertexCount);
   for (const v of session.chain) mask[v] = 1;
   return mask;
+}
+
+/** The name field for the whole-parcellation files, or a sensible default. */
+function parcellationName() {
+  return ui.parcellationName.value.trim() || 'rois';
+}
+
+/** `lh.retinotopy` — the hemisphere and the parcellation, never a single ROI. */
+function parcellationStem() {
+  return buildExportStem(parcellationName(), {
+    anatomicalStructure: state.mesh?.anatomicalStructurePrimary || '',
+    filename: state.sourceName || ''
+  });
+}
+
+/**
+ * Every saved ROI on this surface as one label per vertex, in list order.
+ * The masks are already disjoint — that is what the list order resolved —
+ * so this only stacks them. An ROI that did not resolve is left out and named
+ * in the status, rather than silently written as nothing.
+ */
+function parcellationForExport() {
+  const result = parcellationLabels(savedRois(), state.geometry.vertexCount, SAVED_ROI_COLORS);
+  let note = `${result.entries.length} ROI${result.entries.length === 1 ? '' : 's'}`;
+  if (result.skipped.length) note += `; left out (unresolved): ${result.skipped.join(', ')}`;
+  if (state.editing) note += `; ${state.editing.name} is being edited and is not included until saved`;
+  return { ...result, note };
+}
+
+function exportAnnot() {
+  const { labels, entries, note } = parcellationForExport();
+  // .annot identifies a label by its colour, so two ROIs sharing a palette
+  // colour would merge into one on the way out.
+  const colors = uniqueAnnotColors(entries.map((entry) => entry.rgb));
+  const bytes = writeFreeSurferAnnot(labels, entries.map((entry, i) => ({
+    name: entry.name, rgb: colors[i]
+  })));
+  const filename = `${parcellationStem()}.annot`;
+  download(filename, bytes, 'application/octet-stream');
+  setStatus(`Exported ${filename} (${note}).`);
+}
+
+async function exportAllGifti() {
+  const { labels, entries, note } = parcellationForExport();
+  const xml = await writeGiftiLabel(labels, [
+    { key: LABEL_NONE, name: '???', rgba: [0, 0, 0, 0] },
+    ...entries.map((entry, i) => ({
+      key: i + 1, name: entry.name, rgba: [...entry.rgb.map((c) => c / 255), 1]
+    }))
+  ], { arrayName: parcellationName() });
+  const filename = `${parcellationStem()}.label.gii`;
+  download(filename, xml, 'application/xml');
+  setStatus(`Exported ${filename} (${note}).`);
 }
 
 function exportPoints() {

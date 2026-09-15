@@ -115,7 +115,9 @@ silently dropped.
 The pencil reopens an ROI to adjust its border. It keeps its place in the list, so the
 ROIs above it constrain the drawing exactly as when it was first drawn, and the ROIs
 below it are re-derived on save. Clicking a name makes the export buttons write that
-ROI instead of the region being drawn.
+ROI instead of the region being drawn: the row turns solid green and the export panel
+names it. Clicking again goes back to the region being drawn. Each row also carries a
+swatch of the ROI's fill colour.
 
 **Vertex selection.** Point-and-click landmarks, exported as a vertex list.
 
@@ -133,6 +135,8 @@ document, so there is still one bundle and one path in the composite site.
 | FreeSurfer `.label` | The universal FreeSurfer exchange format; opens in freeview. Also FreeSurfer's own control-point format, so it doubles as a landmark file. Can be dropped back in as an overlay. |
 | GIfTI `.label.gii` | Opens in Connectome Workbench, FSL, nibabel, NiiVue. Carries the ROI name and colour. |
 | Points JSON | Landmarks plus a mesh fingerprint, so a point set cannot be loaded onto the wrong surface. |
+| FreeSurfer `.annot` | **Every saved ROI in one file**, in list order, with names and colours. Opens in freeview; `mri_annotation2label` splits it back into `.label`s. |
+| GIfTI `.label.gii` (all ROIs) | The same parcellation as one integer per vertex with a label table. Opens in Workbench, nibabel, NiiVue. |
 
 Coordinates are written in tkreg (surface) RAS, as the `.label` header declares.
 NiiVue adds the volume centre on load so meshes align with volumes, and the export
@@ -151,6 +155,12 @@ number of vertices, and its indices — and the ROIs drawn on it — belong to t
 alone. Switching to a whole hemisphere shows none of them. They are not lost; ROIs
 follow the vertex indexing and reappear when you switch back, which the status line
 says when it happens.
+
+A whole-parcellation file is named `<hemisphere>.<parcellation>`, from the *All saved
+ROIs as one file* field: `lh.retinotopy.annot`, `lh.retinotopy.label.gii`. An ROI that
+did not resolve is left out and named in the status line. Note that `.annot` identifies
+a label by its colour, not by an index, so two ROIs sharing a palette colour are nudged
+one unit apart on the way out — invisible on screen, distinct in the file.
 
 Files are named `<hemisphere>.<roi>`, e.g. `lh.V1.label` — not after the specific
 surface they were drawn on. An ROI traced on `lh.sphere.reg` applies equally to

@@ -497,6 +497,50 @@ summary:focus-visible {
   border-color: var(--nd-brand-primary);
 }
 
+/* The ROI the export buttons write. Deliberately louder than .selected: that
+   tint marks which surface or overlay the controls edit, but this one changes
+   what a download contains, and a pale green did not read as "this one".
+   Anchored on #controls because the shared app-theme.css restyles every
+   `.layer-list li` in dark mode from a :root[data-neurodesk-theme] selector
+   that outranks any class chain — without the id, this rule loses in the
+   dark theme and only the box-shadow survives. */
+#controls .layer-list li.export-target {
+  color: var(--nd-brand-white);
+  background: var(--nd-brand-selected);
+  border-color: var(--nd-brand-selected);
+  box-shadow: 0 0 0 2px var(--nd-brand-hover);
+}
+/* The theme gives buttons a pale face in light mode, which would leave white
+   glyphs on white; inside the green row every button sits flat on it. */
+#controls .layer-list li.export-target .layer-meta,
+#controls .layer-list li.export-target button.layer-name,
+#controls .layer-list li.export-target button.layer-icon,
+#controls .layer-list li.export-target button.layer-remove {
+  color: rgb(255 255 255 / 88%);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+#controls .layer-list li.export-target button.layer-name { color: var(--nd-brand-white); }
+#controls .layer-list li.export-target button.layer-icon:disabled {
+  color: rgb(255 255 255 / 35%);
+  background: transparent;
+}
+#controls .layer-list li.export-target button.layer-icon:hover:not(:disabled),
+#controls .layer-list li.export-target button.layer-edit:hover {
+  color: var(--nd-brand-selection);
+  background: var(--nd-brand-hover);
+}
+
+/* Each ROI's fill colour, so a row can be matched to the surface. */
+.layer-swatch {
+  flex: 0 0 auto;
+  width: 11px;
+  height: 11px;
+  border: 1px solid rgb(0 0 0 / 25%);
+  border-radius: 50%;
+}
+
 .layer-list input { flex: 0 0 auto; margin: 0; accent-color: var(--nd-brand-primary); }
 
 .layer-list .layer-name,

@@ -370,7 +370,7 @@
             <span class="panel-step" aria-hidden="true">05</span>
             <div>
               <h2>Export</h2>
-              <p>Download the active region in your preferred format.</p>
+              <p>Download the active region, or every saved ROI, in your preferred format.</p>
             </div>
           </summary>
           <p class="hint" id="exportNameHint">Used in the file name and inside the file.</p>
@@ -382,6 +382,23 @@
             <button type="button" id="exportPoints" disabled>Points JSON</button>
           </div>
           <p class="hint" id="exportHint">Coordinates are written in the loaded surface's space.</p>
+
+          <!-- Every saved ROI in one file, in list order. Named separately from
+               the ROI field, which names the *next* ROI: lh.retinotopy.annot,
+               not lh.V3.annot. -->
+          <label class="file-field">
+            <span>All saved ROIs as one file</span>
+            <input type="text" id="parcellationName" value="rois" maxlength="64"
+                   placeholder="e.g. retinotopy" autocomplete="off" spellcheck="false" />
+          </label>
+          <div class="button-row">
+            <button type="button" id="exportAnnot" disabled>FreeSurfer .annot</button>
+            <button type="button" id="exportAllGifti" disabled>GIfTI .label.gii</button>
+          </div>
+          <p class="hint" id="exportAllHint">
+            One label per vertex; each ROI keeps its name and colour. Opens in freeview,
+            Workbench, nibabel and NiiVue.
+          </p>
         </details>
       </div>
 
