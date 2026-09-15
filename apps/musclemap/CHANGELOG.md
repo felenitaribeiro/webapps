@@ -1,5 +1,12 @@
 # musclemap
 
+## 1.4.20260915
+
+### Patch Changes
+
+- Add Run offline instructions through the shared Standalone action, linking the MuscleMap 1.4 Neurodesk container on Zenodo with its checksum, setup guidance and copyable CPU segmentation command.
+- Restore the 1.4 model release series after the catalog-wide release incorrectly advanced it to 1.5. Pin the series in the release planner so webapp and shared dependency changes only advance the UTC date. Synchronize the application and generated model catalog versions.
+
 ## 1.5.20260914
 
 ### Patch Changes
@@ -7,7 +14,6 @@
 - Updated dependencies [3cd773f]
 - Updated dependencies [4add8da]
   - @neurodesk/webapp-components@0.1.5
-
 
 ### Patch Changes
 

@@ -34,6 +34,12 @@ test('embedded version strings and linked packages match their app', async () =>
   }
 });
 
+test('MuscleMap releases stay on the supported upstream series', () => {
+  const { manifest } = packages.get('musclemap');
+  assert.equal(manifest.releaseSeries, '1.4');
+  assert.equal(manifest.version.split('.').slice(0, 2).join('.'), manifest.releaseSeries);
+});
+
 test('date versions preserve bump semantics and reject invalid dates and downgrades', () => {
   assert.equal(nextVersion('1.4.7', 'patch', '20260910'), '1.4.20260910');
   assert.equal(nextVersion('1.4.20260930', 'patch', '20261001'), '1.4.20261001');
@@ -133,6 +139,21 @@ test('same-day updates are explicit and retain one changelog version heading', a
   assert.equal(changelog.match(/^## 0\.1\.20260930$/gm).length, 1);
   assert.match(changelog, /Earlier work/);
   assert.match(changelog, /Same-day fix/);
+});
+
+test('upstream release series survives patch, minor and major webapp changes', async (t) => {
+  const { root, put, json } = await fixture(t);
+  const manifest = await json('apps/zarro');
+  await put('apps/zarro/package.json', JSON.stringify({ ...manifest, releaseSeries: '0.1' }));
+  for (const bump of ['patch', 'minor', 'major']) {
+    await put('.changeset/a.md', `---\n"zarro": ${bump}\n---\n\nWebapp changes.\n`);
+    const release = await planRelease(root, { date: '20261001' });
+    assert.equal(release.plan.releases.find(({ name }) => name === 'zarro').newVersion, '0.1.20261001');
+    await assert.rejects(planRelease(root, { date: '20260930' }), /already at/);
+  }
+  await applyRelease(await planRelease(root, { date: '20261001' }));
+  assert.equal((await json('apps/zarro')).version, '0.1.20261001');
+  assert.deepEqual(await embeddedVersionMismatches(await workspacePackages(root), root), []);
 });
 
 test('broken embedded version sites fail before consuming changesets or editing manifests', async (t) => {

@@ -82,9 +82,14 @@ export async function planRelease(root = repoRoot, { date = releaseDate(), sameD
     if (release.type === 'none') continue;
     const pkg = packages.get(release.name);
     if (pkg.group !== 'apps' && !Object.hasOwn(LINKED_PACKAGES, release.name)) continue;
-    release.newVersion = nextVersion(release.oldVersion, release.type, date);
+    const series = pkg.manifest.releaseSeries;
+    if (series !== undefined && !/^(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(series)) {
+      throw new Error(`${release.name}: releaseSeries must be MAJOR.MINOR, got ${series}`);
+    }
+    release.newVersion = nextVersion(release.oldVersion, series === undefined ? release.type : 'patch', date);
+    if (series !== undefined) release.newVersion = `${series}.${date}`;
     if (release.newVersion === release.oldVersion && !sameDay) {
-      throw new Error(`${release.name} is already at ${release.oldVersion}; release again tomorrow, bump minor, or pass --same-day to update this version`);
+      throw new Error(`${release.name} is already at ${release.oldVersion}; release again tomorrow or pass --same-day to update this version`);
     }
   }
   const embeddedUpdates = [];
