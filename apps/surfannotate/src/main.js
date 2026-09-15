@@ -4,7 +4,8 @@ import './styles.css';
 import { mountImagingWorkspace } from '@neurodesk/webapp-components/core/mount-imaging-workspace';
 import { Niivue } from '@niivue/niivue';
 import {
-  registerExtraColormaps, colormapWindow, sampledColormap
+  registerExtraColormaps, colormapWindow, sampledColormap, colormapKey, baseColormap,
+  isFlipped, canFlip
 } from './niivue/colormaps.js';
 import {
   legendKind, legendTicks, paintLegend, rangeDecimals
@@ -102,6 +103,7 @@ const ui = {
   overlaySelectedHint: el('overlaySelectedHint'),
   overlayOpacity: el('overlayOpacity'),
   overlayColormap: el('overlayColormap'),
+  overlayFlip: el('overlayFlip'),
   overlayMin: el('overlayMin'),
   overlayMax: el('overlayMax'),
   overlayRangeReset: el('overlayRangeReset'),
@@ -756,7 +758,7 @@ async function init() {
     if (!overlay) return;
     overlay.opacity = Number(ui.overlayOpacity.value);
     setOverlayDisplay(state.nv, state.mesh, overlay.layer, {
-      colormap: ui.overlayColormap.value,
+      colormap: selectedColormapKey(),
       opacity: overlay.visible ? overlay.opacity : 0
     });
   };
@@ -764,11 +766,22 @@ async function init() {
   // Deliberately NOT inside applyOverlayDisplay: the opacity slider shares it
   // and fires per frame of a drag, which would re-snap a window typed over.
   ui.overlayColormap.addEventListener('change', () => {
+    syncFlipControl();
     applyOverlayDisplay();
     const snapped = applyColormapWindow();
     if (snapped) setStatus(snapped.note);
     // applyColormapWindow only redraws the legend when it had a window to apply.
     renderColorLegend();
+  });
+  // The flip changes the colours, not the window: the mirrored map spans the
+  // same turn, so a window the user typed is left alone.
+  ui.overlayFlip.addEventListener('change', () => {
+    applyOverlayDisplay();
+    renderColorLegend();
+    repaint();
+    setStatus(ui.overlayFlip.checked
+      ? 'Polar angle mirrored left–right, for the other hemisphere.'
+      : 'Polar angle shown unmirrored.');
   });
 
   ui.overlayIgnoreMask.addEventListener('change', () => {
@@ -1169,7 +1182,7 @@ async function addOverlay(file) {
   try {
     const display = {
       opacity: Number(ui.overlayOpacity.value),
-      colormap: ui.overlayColormap.value
+      colormap: selectedColormapKey()
     };
     // NiiVue cannot read a FreeSurfer .label, so we expand it ourselves. It is
     // also sparse — a list of the vertices in the region — where every format
@@ -1282,12 +1295,18 @@ function syncMaskControls() {
   const mask = activeMask(entry);
   ui.maskInput.disabled = !entry;
   ui.maskClear.disabled = !mask;
+  // Both texts name the rule, not just its effect: "curvature is always shown"
+  // says nothing about what counts as curvature, and a curvature file under
+  // another name gets masked until the user finds the per-overlay switch.
   ui.maskHint.textContent = mask
     ? `${mask.name}: overlays limited to ` +
-      `${maskedInCount(mask.mask).toLocaleString()} vertices. Curvature is always shown.`
-    : 'Optional. Every overlay is drawn only where the mask is non-zero; ' +
-      'curvature is always shown. A file with "mask" in its name can just be ' +
-      'dropped on the viewer.';
+      `${maskedInCount(mask.mask).toLocaleString()} vertices. Overlays named ` +
+      '"curv" or "curvature" are always shown; tick "Always show this overlay" ' +
+      'for any other.'
+    : 'Optional. Every overlay is drawn only where the mask is non-zero. A file ' +
+      'with "curv" or "curvature" in its name (lh.curv, hemi-L_curv.shape.gii) is ' +
+      'treated as anatomy and always shown; for any other file, tick "Always show ' +
+      'this overlay". A file with "mask" in its name can just be dropped on the viewer.';
 }
 
 async function isFreeSurferLabel(file) {
@@ -1366,7 +1385,9 @@ function syncOverlayControls() {
   if (overlay) {
     const layerState = overlayLayerState(overlay.layer);
     ui.overlaySelectedHint.textContent = `Editing ${overlay.name}.`;
-    ui.overlayColormap.value = layerState.colormap;
+    // The layer holds one key; the picker and the flip box are its two halves.
+    ui.overlayColormap.value = baseColormap(layerState.colormap);
+    ui.overlayFlip.checked = isFlipped(layerState.colormap);
     ui.overlayOpacity.value = String(overlay.opacity);
     ui.overlayIgnoreMask.checked = overlay.ignoreMask;
     showOverlayRange(overlay.layer);
@@ -1376,10 +1397,26 @@ function syncOverlayControls() {
     ui.overlayMin.value = '';
     ui.overlayMax.value = '';
     ui.overlayIgnoreMask.checked = false;
+    ui.overlayFlip.checked = false;
   }
+  syncFlipControl();
   syncMaskControls();
   renderColorLegend();
   renderLayerLists();
+}
+
+/**
+ * The flip box is live only for a polar-angle map. It keeps its state while
+ * disabled, so a flip set for one hemisphere survives a look at eccentricity
+ * and comes back with the next polar-angle map.
+ */
+function syncFlipControl() {
+  ui.overlayFlip.disabled = !activeOverlay() || !canFlip(ui.overlayColormap.value);
+}
+
+/** The key the controls currently describe: the picked map, mirrored if asked. */
+function selectedColormapKey() {
+  return colormapKey(ui.overlayColormap.value, ui.overlayFlip.checked);
 }
 
 /**
@@ -1397,7 +1434,7 @@ function applyColormapWindow() {
   // -Infinity, and the window should describe the data, not the visible remnant
   // of it. It is also what makes the window survive loading a mask.
   const snapped = colormapWindow(
-    ui.overlayColormap.value, overlay.baseValues, state.overlayAutoRange
+    selectedColormapKey(), overlay.baseValues, state.overlayAutoRange
   );
   if (!snapped) return null;
 
@@ -1427,7 +1464,7 @@ function renderColorLegend() {
   ui.colorLegend.hidden = !showing;
   if (!showing) return;
 
-  const key = ui.overlayColormap.value;
+  const key = selectedColormapKey();
   const kind = legendKind(key);
   ui.colorLegend.dataset.kind = kind;
 

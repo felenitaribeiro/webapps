@@ -19,11 +19,11 @@ Polar angle: **`YBGR_polar-angle`** (yellow, blue, green, red, yellow —
 contributed by DL), **`RYGBP_polar-angle`** (`gist_rainbow` read as a turn: red,
 yellow, green, blue, pink and back to red, the convention many retinotopy
 figures use) and **`RYBC_polar-angle`** (red, yellow, blue, cyan at the quarter turns,
-back to red). Each polar-angle map also comes **`-flipped`**: the same colours
-mirrored about the vertical meridian, so the colour at angle θ is the
-original's at π − θ. Use the plain map for one hemisphere and the flipped one
-for the other, and the two read the same way — upper field up, lower field
-down, nasal and temporal swapped as the anatomy is. Picking any of
+back to red). *Flip for the other hemisphere* mirrors whichever polar-angle map
+is selected about the vertical meridian, so the colour at angle θ becomes the
+original's at π − θ. Show one hemisphere plain and the other flipped and the
+two read the same way — upper field up, lower field down, nasal and temporal
+swapped as the anatomy is. Each overlay keeps its own flip. Picking any of
 them also sets the display window, because for these the window is part of the
 map — polar angle is cyclic and only truthful across exactly one turn, and
 eccentricity has to start at zero for the fovea to sit at the bottom of the

@@ -166,10 +166,22 @@ which is why the algorithm suite is fast and deterministic. Only `main.js` and
   meridian, on an eccentricity map the fovea. The same sequence can sit under
   two keys with two roles (`RYBC` does); the polar-angle version repeats its
   first colour at the full turn and the eccentricity version does not.
-- **The `-flipped` polar-angle maps are derived by `mirrorPolarAngle`, never
-  transcribed.** They exist so a left and a right hemisphere can be read with
-  the same wheel: the colour at θ is the original's at π − θ, i.e. LUT index
-  j ← (128 − j) mod 256. This is the *only* place a mirror belongs. The wheel
+- **The hemisphere flip is one checkbox and a key suffix, not more picker
+  entries.** A NiiVue layer is coloured by colormap key and nothing else, so a
+  mirrored map has to be *registered* — `EXTRA_COLORMAPS` holds every
+  polar-angle map twice, the twin under `<key>-flipped`, derived by
+  `mirrorPolarAngle` and never transcribed. But the picker lists only the base
+  maps: `#overlayFlip` composes the key (`colormapKey`) and
+  `syncOverlayControls` splits the layer's key back into picker + box
+  (`baseColormap`, `isFlipped`). Every read of the picker in `main.js` goes
+  through `selectedColormapKey()`; reading `ui.overlayColormap.value` directly
+  is the bug that renders the unflipped map while the box says flipped. The box
+  is enabled only for a polar-angle map (`canFlip`) and keeps its state while
+  disabled, so a flip survives a detour through eccentricity. Flipping does not
+  re-snap the window — the mirrored map spans the same turn, and a typed window
+  should not be overwritten by a colour change. The mirror itself: the colour
+  at θ is the original's at π − θ, i.e. LUT index j ← (128 − j) mod 256, and
+  this is the *only* place a mirror belongs. The wheel
   in `colorLegend.js` samples the LUT by azimuth and must stay as it is —
   mirroring the wheel instead of the map would show the right colours on the
   legend and the wrong ones on the surface. Two traps in the mirror itself:

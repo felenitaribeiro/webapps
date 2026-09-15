@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 
 import {
   EXTRA_COLORMAPS, ECCENTRICITY_RYGBP, ECCENTRICITY_RYBC, POLAR_ANGLE_YBGR,
-  POLAR_ANGLE_RYGBP, POLAR_ANGLE_RYBC, POLAR_ANGLE_YBGR_FLIPPED,
-  mirrorPolarAngle, sampleControlPoints, registerExtraColormaps, colormapWindow, colormapRole, cycleUnit
+  POLAR_ANGLE_RYGBP, POLAR_ANGLE_RYBC, mirrorPolarAngle, sampleControlPoints,
+  colormapKey, baseColormap, isFlipped, canFlip, registerExtraColormaps, colormapWindow,
+  colormapRole, cycleUnit
 } from '../src/niivue/colormaps.js';
 
 const TWO_PI = 2 * Math.PI;
@@ -106,6 +107,7 @@ test('flipping swaps the horizontal meridians and leaves the vertical ones alone
   // YBGR: east yellow, north blue, west green, south red. Seen from the other
   // hemisphere: east green, north blue, west yellow, south red.
   const rgb = (cmap, i) => sampleControlPoints(cmap, i).slice(0, 3);
+  const POLAR_ANGLE_YBGR_FLIPPED = EXTRA_COLORMAPS['YBGR_polar-angle-flipped'];
   assert.deepEqual(rgb(POLAR_ANGLE_YBGR_FLIPPED, 0), GREEN, 'east');
   assert.deepEqual(rgb(POLAR_ANGLE_YBGR_FLIPPED, 64), BLUE, 'north');
   assert.deepEqual(rgb(POLAR_ANGLE_YBGR_FLIPPED, 128), YELLOW, 'west');
@@ -143,6 +145,32 @@ test('the flipped maps are polar-angle maps too', () => {
   for (const [, flippedKey] of FLIPPED_PAIRS) {
     assert.equal(colormapRole(flippedKey), 'polar_angle', flippedKey);
   }
+});
+
+test('every polar-angle map, and nothing else, has a flipped twin registered', () => {
+  for (const key of Object.keys(EXTRA_COLORMAPS)) {
+    if (isFlipped(key)) continue;
+    assert.equal(`${key}-flipped` in EXTRA_COLORMAPS, canFlip(key), key);
+  }
+});
+
+test('the flip box composes the key and reads it back', () => {
+  assert.equal(colormapKey('YBGR_polar-angle', false), 'YBGR_polar-angle');
+  assert.equal(colormapKey('YBGR_polar-angle', true), 'YBGR_polar-angle-flipped');
+  // A flip asked of a map that has no hemisphere to flip for is ignored, not
+  // an error: the box keeps its state across a detour through eccentricity.
+  assert.equal(colormapKey('RYBC_eccentricity', true), 'RYBC_eccentricity');
+  assert.equal(colormapKey('gist_rainbow', true), 'gist_rainbow');
+
+  assert.equal(baseColormap('YBGR_polar-angle-flipped'), 'YBGR_polar-angle');
+  assert.equal(baseColormap('YBGR_polar-angle'), 'YBGR_polar-angle');
+  assert.equal(isFlipped('YBGR_polar-angle-flipped'), true);
+  assert.equal(isFlipped('YBGR_polar-angle'), false);
+
+  assert.equal(canFlip('RYGBP_polar-angle'), true);
+  assert.equal(canFlip('RYGBP_eccentricity'), false);
+  assert.equal(canFlip('gist_rainbow'), false);
+  assert.equal(canFlip('gray'), false);
 });
 
 test('the RYGBP polar-angle map is gist_rainbow under a polar-angle role', () => {

@@ -146,39 +146,70 @@ export function mirrorPolarAngle(cmap) {
   return { I, R: channel(0), G: channel(1), B: channel(2), A: channel(3) };
 }
 
-/** The three polar-angle maps as seen from the other hemisphere. */
-export const POLAR_ANGLE_YBGR_FLIPPED = mirrorPolarAngle(POLAR_ANGLE_YBGR);
-export const POLAR_ANGLE_RYGBP_FLIPPED = mirrorPolarAngle(POLAR_ANGLE_RYGBP);
-export const POLAR_ANGLE_RYBC_FLIPPED = mirrorPolarAngle(POLAR_ANGLE_RYBC);
-
-export const EXTRA_COLORMAPS = Object.freeze({
-  gist_rainbow: GIST_RAINBOW,
-  RYGBP_eccentricity: ECCENTRICITY_RYGBP,
-  RYBC_eccentricity: ECCENTRICITY_RYBC,
-  'YBGR_polar-angle': POLAR_ANGLE_YBGR,
-  'YBGR_polar-angle-flipped': POLAR_ANGLE_YBGR_FLIPPED,
-  'RYGBP_polar-angle': POLAR_ANGLE_RYGBP,
-  'RYGBP_polar-angle-flipped': POLAR_ANGLE_RYGBP_FLIPPED,
-  'RYBC_polar-angle': POLAR_ANGLE_RYBC,
-  'RYBC_polar-angle-flipped': POLAR_ANGLE_RYBC_FLIPPED
-});
-
 /**
  * What a colour map *measures*, which is what decides its legend and window.
  * Keyed by name so several maps can share a role: every polar-angle map gets
- * the wheel and the full turn, whichever colours it runs through and whichever
- * hemisphere it is flipped for.
+ * the wheel and the full turn, whichever colours it runs through.
  */
 const COLORMAP_ROLES = Object.freeze({
   RYGBP_eccentricity: 'eccentricity',
   RYBC_eccentricity: 'eccentricity',
   'YBGR_polar-angle': 'polar_angle',
-  'YBGR_polar-angle-flipped': 'polar_angle',
   'RYGBP_polar-angle': 'polar_angle',
-  'RYGBP_polar-angle-flipped': 'polar_angle',
-  'RYBC_polar-angle': 'polar_angle',
-  'RYBC_polar-angle-flipped': 'polar_angle'
+  'RYBC_polar-angle': 'polar_angle'
 });
+
+/**
+ * A polar-angle map's mirror image is registered under its own key, because a
+ * NiiVue layer is coloured by key and nothing else. The suffix is an
+ * implementation detail: the picker lists only the base maps, and the flip is
+ * a checkbox that composes the key (`colormapKey`) and reads it back
+ * (`baseColormap`, `isFlipped`).
+ */
+const FLIP_SUFFIX = '-flipped';
+
+/** The map a key names before any flip. */
+export function baseColormap(key) {
+  return key.endsWith(FLIP_SUFFIX) ? key.slice(0, -FLIP_SUFFIX.length) : key;
+}
+
+/** Whether a key names the mirrored form of its base map. */
+export function isFlipped(key) {
+  return key.endsWith(FLIP_SUFFIX);
+}
+
+/** Only a polar-angle map has a hemisphere to be flipped for. */
+export function canFlip(key) {
+  return colormapRole(key) === 'polar_angle';
+}
+
+/**
+ * The key to colour a layer with: the base map, or its mirror image when
+ * asked for and it has one. A flip requested on a map that cannot take it is
+ * ignored rather than refused, so the checkbox can stay set across a switch
+ * to an eccentricity map and back.
+ * @param {string} base
+ * @param {boolean} flipped
+ */
+export function colormapKey(base, flipped) {
+  return flipped && canFlip(base) ? `${base}${FLIP_SUFFIX}` : base;
+}
+
+const BASE_COLORMAPS = {
+  gist_rainbow: GIST_RAINBOW,
+  RYGBP_eccentricity: ECCENTRICITY_RYGBP,
+  RYBC_eccentricity: ECCENTRICITY_RYBC,
+  'YBGR_polar-angle': POLAR_ANGLE_YBGR,
+  'RYGBP_polar-angle': POLAR_ANGLE_RYGBP,
+  'RYBC_polar-angle': POLAR_ANGLE_RYBC
+};
+
+export const EXTRA_COLORMAPS = Object.freeze(Object.fromEntries(
+  Object.entries(BASE_COLORMAPS).flatMap(([key, cmap]) =>
+    canFlip(key)
+      ? [[key, cmap], [`${key}${FLIP_SUFFIX}`, mirrorPolarAngle(cmap)]]
+      : [[key, cmap]])
+));
 
 /**
  * The retinotopic quantity a colour map is for, or null for an ordinary map.
@@ -186,7 +217,7 @@ const COLORMAP_ROLES = Object.freeze({
  * @returns {'eccentricity'|'polar_angle'|null}
  */
 export function colormapRole(key) {
-  return COLORMAP_ROLES[key] ?? null;
+  return COLORMAP_ROLES[baseColormap(key)] ?? null;
 }
 
 /**

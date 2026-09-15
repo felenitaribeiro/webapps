@@ -660,20 +660,32 @@ test('the colour scale on the view follows the map, the range and the overlay', 
   await expect(legend).toHaveAttribute('data-kind', 'polar_angle');
   await expect(ticks).toHaveText(['0', 'π/2', 'π', '3π/2']);
 
-  for (const key of ['RYGBP_polar-angle', 'RYBC_polar-angle', 'YBGR_polar-angle-flipped',
-    'RYGBP_polar-angle-flipped', 'RYBC_polar-angle-flipped']) {
+  const layerColormap = () => page.evaluate(() => window.__surfannotate.overlayLayer.colormap);
+  // NiiVue's own LUT, as the shader samples it: every entry opaque. A stop
+  // NiiVue could not interpolate (two on one index) comes out as (0, 0, 0, 0).
+  const lutHoles = () => page.evaluate(() => {
+    const lut = window.__surfannotate.nv.colormap(window.__surfannotate.overlayLayer.colormap);
+    const bad = [];
+    for (let i = 0; i < 256; i++) if (lut[i * 4 + 3] !== 255) bad.push(i);
+    return bad;
+  });
+  for (const key of ['RYGBP_polar-angle', 'RYBC_polar-angle', 'YBGR_polar-angle']) {
     await page.selectOption('#overlayColormap', key);
     await expect(legend).toHaveAttribute('data-kind', 'polar_angle');
     await expect(ticks).toHaveText(['0', 'π/2', 'π', '3π/2']);
-    // NiiVue's own LUT, as the shader samples it: every entry opaque. A stop
-    // NiiVue could not interpolate (two on one index) comes out as (0, 0, 0, 0).
-    const holes = await page.evaluate((name) => {
-      const lut = window.__surfannotate.nv.colormap(name);
-      const bad = [];
-      for (let i = 0; i < 256; i++) if (lut[i * 4 + 3] !== 255) bad.push(i);
-      return bad;
-    }, key);
-    expect(holes, `${key} has transparent LUT entries`).toEqual([]);
+    expect(await lutHoles(), `${key} has transparent LUT entries`).toEqual([]);
+
+    // The flip is a checkbox, not another entry: it mirrors the map for the
+    // other hemisphere, keeps the wheel and the ticks, and is read back from
+    // the layer's key.
+    await expect(page.locator('#overlayFlip')).toBeEnabled();
+    await page.check('#overlayFlip');
+    expect(await layerColormap()).toBe(`${key}-flipped`);
+    await expect(legend).toHaveAttribute('data-kind', 'polar_angle');
+    await expect(ticks).toHaveText(['0', 'π/2', 'π', '3π/2']);
+    expect(await lutHoles(), `${key}-flipped has transparent LUT entries`).toEqual([]);
+    await page.uncheck('#overlayFlip');
+    expect(await layerColormap()).toBe(key);
   }
 
   for (const key of ['RYGBP_eccentricity', 'RYBC_eccentricity']) {
@@ -681,6 +693,8 @@ test('the colour scale on the view follows the map, the range and the overlay', 
     await expect(legend).toHaveAttribute('data-kind', 'eccentricity');
     await expect(ticks).toHaveCount(3);
     await expect(page.locator('#colorLegend .color-legend-ring')).toHaveCount(2);
+    // Nothing to flip for: eccentricity is the same from either hemisphere.
+    await expect(page.locator('#overlayFlip')).toBeDisabled();
   }
 
   // A typed range re-ticks it; the wheel is not a picture of the data's own range.

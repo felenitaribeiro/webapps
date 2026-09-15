@@ -185,9 +185,10 @@
           </div>
           <!-- Replaced by syncMaskControls once a mask is loaded. -->
           <p class="hint" id="maskHint">
-            Optional. Every overlay is drawn only where the mask is non-zero;
-            curvature is always shown. A file with "mask" in its name can just be
-            dropped on the viewer.
+            Optional. Every overlay is drawn only where the mask is non-zero. A file
+            with "curv" or "curvature" in its name (lh.curv, hemi-L_curv.shape.gii) is
+            treated as anatomy and always shown; for any other file, tick "Always show
+            this overlay". A file with "mask" in its name can just be dropped on the viewer.
           </p>
 
           <p class="hint" id="overlaySelectedHint" hidden></p>
@@ -204,19 +205,20 @@
               <option value="jet">jet</option>
               <option value="gist_rainbow">gist_rainbow</option>
               <!-- Retinotopy maps, named for their colour sequence and listed
-                   alphabetically. "flipped" is the same map mirrored about the
-                   vertical meridian, for the other hemisphere. Picking any of
-                   these also sets the display window. -->
+                   alphabetically. Picking any of these also sets the display window. -->
               <option value="RYBC_eccentricity">RYBC_eccentricity</option>
               <option value="RYBC_polar-angle">RYBC_polar-angle</option>
-              <option value="RYBC_polar-angle-flipped">RYBC_polar-angle-flipped</option>
               <option value="RYGBP_eccentricity">RYGBP_eccentricity</option>
               <option value="RYGBP_polar-angle">RYGBP_polar-angle</option>
-              <option value="RYGBP_polar-angle-flipped">RYGBP_polar-angle-flipped</option>
               <option value="YBGR_polar-angle">YBGR_polar-angle</option>
-              <option value="YBGR_polar-angle-flipped">YBGR_polar-angle-flipped</option>
             </select>
           </div>
+          <!-- Only a polar-angle map has a hemisphere to flip for; enabled by main.js
+               when one is selected. -->
+          <label class="check">
+            <input type="checkbox" id="overlayFlip" disabled />
+            <span>Flip for the other hemisphere (mirror the polar-angle map left–right)</span>
+          </label>
           <div class="row">
             <label for="overlayOpacity">Overlay opacity</label>
             <input type="range" id="overlayOpacity" min="0" max="1" step="0.05" value="1" disabled />
