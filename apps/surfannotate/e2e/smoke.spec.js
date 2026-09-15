@@ -591,7 +591,10 @@ test('the retinotopy colour maps set the window their scale needs', async ({ pag
   await loadSurface(page);
   expect(await page.evaluate(() => {
     const maps = window.__surfannotate.nv.colormaps();
-    return ['eccentricity', 'polar_angle'].every((key) => maps.includes(key));
+    return ['RYGBP_eccentricity', 'RYBC_eccentricity', 'YBGR_polar-angle',
+      'RYGBP_polar-angle', 'RYBC_polar-angle', 'YBGR_polar-angle-flipped',
+      'RYGBP_polar-angle-flipped', 'RYBC_polar-angle-flipped']
+      .every((key) => maps.includes(key));
   })).toBe(true);
 
   await page.setInputFiles('#overlayInput', join(FIXTURES, 'lh.curv'));
@@ -604,16 +607,23 @@ test('the retinotopy colour maps set the window their scale needs', async ({ pag
   };
 
   // NiiVue's .curv reader min-max normalises into 0..1, so this reads as radians.
-  await page.selectOption('#overlayColormap', 'polar_angle');
+  await page.selectOption('#overlayColormap', 'YBGR_polar-angle');
   await expect(page.locator('#statusText')).toContainText('one full cycle');
   expect(await page.evaluate(() => {
     const layer = window.__surfannotate.overlayLayer;
     return { colormap: layer.colormap, min: layer.cal_min, max: layer.cal_max };
-  })).toEqual({ colormap: 'polar_angle', min: 0, max: 2 * Math.PI });
+  })).toEqual({ colormap: 'YBGR_polar-angle', min: 0, max: 2 * Math.PI });
+
+  // The gist_rainbow variant is a polar-angle map too, and gets the same turn.
+  await page.selectOption('#overlayColormap', 'RYGBP_polar-angle');
+  expect(await page.evaluate(() => {
+    const layer = window.__surfannotate.overlayLayer;
+    return { colormap: layer.colormap, min: layer.cal_min, max: layer.cal_max };
+  })).toEqual({ colormap: 'RYGBP_polar-angle', min: 0, max: 2 * Math.PI });
 
   // Anchored at zero, keeping the robust maximum. Read through the boxes, which
   // round the stored value and the recorded one identically.
-  await page.selectOption('#overlayColormap', 'eccentricity');
+  await page.selectOption('#overlayColormap', 'RYGBP_eccentricity');
   expect(await page.inputValue('#overlayMin')).toBe('0');
   expect(await page.inputValue('#overlayMax')).toBe(auto.max);
   expect(await page.evaluate(() => window.__surfannotate.overlayLayer.cal_min)).toBe(0);
@@ -646,14 +656,32 @@ test('the colour scale on the view follows the map, the range and the overlay', 
 
   // The retinotopy maps get their wheel. The four quarter turns are labelled in
   // the unit the window is in, counter-clockwise from the right.
-  await page.selectOption('#overlayColormap', 'polar_angle');
+  await page.selectOption('#overlayColormap', 'YBGR_polar-angle');
   await expect(legend).toHaveAttribute('data-kind', 'polar_angle');
   await expect(ticks).toHaveText(['0', 'π/2', 'π', '3π/2']);
 
-  await page.selectOption('#overlayColormap', 'eccentricity');
-  await expect(legend).toHaveAttribute('data-kind', 'eccentricity');
-  await expect(ticks).toHaveCount(3);
-  await expect(page.locator('#colorLegend .color-legend-ring')).toHaveCount(2);
+  for (const key of ['RYGBP_polar-angle', 'RYBC_polar-angle', 'YBGR_polar-angle-flipped',
+    'RYGBP_polar-angle-flipped', 'RYBC_polar-angle-flipped']) {
+    await page.selectOption('#overlayColormap', key);
+    await expect(legend).toHaveAttribute('data-kind', 'polar_angle');
+    await expect(ticks).toHaveText(['0', 'π/2', 'π', '3π/2']);
+    // NiiVue's own LUT, as the shader samples it: every entry opaque. A stop
+    // NiiVue could not interpolate (two on one index) comes out as (0, 0, 0, 0).
+    const holes = await page.evaluate((name) => {
+      const lut = window.__surfannotate.nv.colormap(name);
+      const bad = [];
+      for (let i = 0; i < 256; i++) if (lut[i * 4 + 3] !== 255) bad.push(i);
+      return bad;
+    }, key);
+    expect(holes, `${key} has transparent LUT entries`).toEqual([]);
+  }
+
+  for (const key of ['RYGBP_eccentricity', 'RYBC_eccentricity']) {
+    await page.selectOption('#overlayColormap', key);
+    await expect(legend).toHaveAttribute('data-kind', 'eccentricity');
+    await expect(ticks).toHaveCount(3);
+    await expect(page.locator('#colorLegend .color-legend-ring')).toHaveCount(2);
+  }
 
   // A typed range re-ticks it; the wheel is not a picture of the data's own range.
   await page.fill('#overlayMax', '9');

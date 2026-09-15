@@ -11,10 +11,21 @@ overlay: curvature, thickness, `.annot`, `.label.gii`, `.shape.gii`, `.mgz`, or 
 `.dscalar.nii`. Colour map, opacity and display window are adjustable, including
 `gist_rainbow`, which NiiVue does not ship.
 
-Two are retinotopy conventions contributed by DL: **eccentricity** (matplotlib's
-`rainbow_r`) and **polar angle** (yellow, blue, green, red, yellow). Picking
-either also sets the display window, because for these two the window is part of
-the map — polar angle is cyclic and only truthful across exactly one turn, and
+Five are retinotopy maps, each named for the colour sequence it runs through.
+Eccentricity: **`RYGBP_eccentricity`** (matplotlib's `rainbow_r`: red at the
+fovea, through yellow, green and blue, to purple at the periphery) and
+**`RYBC_eccentricity`** (red at the fovea, yellow, blue, cyan at the periphery).
+Polar angle: **`YBGR_polar-angle`** (yellow, blue, green, red, yellow —
+contributed by DL), **`RYGBP_polar-angle`** (`gist_rainbow` read as a turn: red,
+yellow, green, blue, pink and back to red, the convention many retinotopy
+figures use) and **`RYBC_polar-angle`** (red, yellow, blue, cyan at the quarter turns,
+back to red). Each polar-angle map also comes **`-flipped`**: the same colours
+mirrored about the vertical meridian, so the colour at angle θ is the
+original's at π − θ. Use the plain map for one hemisphere and the flipped one
+for the other, and the two read the same way — upper field up, lower field
+down, nasal and temporal swapped as the anatomy is. Picking any of
+them also sets the display window, because for these the window is part of the
+map — polar angle is cyclic and only truthful across exactly one turn, and
 eccentricity has to start at zero for the fovea to sit at the bottom of the
 scale. The turn is read off the data: a maximum at or below 2π is radians,
 anything larger is degrees, and negative values take the signed variant.

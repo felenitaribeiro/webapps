@@ -203,9 +203,18 @@
               <option value="hot">hot</option>
               <option value="jet">jet</option>
               <option value="gist_rainbow">gist_rainbow</option>
-              <!-- Picking either also sets the display window. -->
-              <option value="eccentricity">eccentricity</option>
-              <option value="polar_angle">polar angle</option>
+              <!-- Retinotopy maps, named for their colour sequence and listed
+                   alphabetically. "flipped" is the same map mirrored about the
+                   vertical meridian, for the other hemisphere. Picking any of
+                   these also sets the display window. -->
+              <option value="RYBC_eccentricity">RYBC_eccentricity</option>
+              <option value="RYBC_polar-angle">RYBC_polar-angle</option>
+              <option value="RYBC_polar-angle-flipped">RYBC_polar-angle-flipped</option>
+              <option value="RYGBP_eccentricity">RYGBP_eccentricity</option>
+              <option value="RYGBP_polar-angle">RYGBP_polar-angle</option>
+              <option value="RYGBP_polar-angle-flipped">RYGBP_polar-angle-flipped</option>
+              <option value="YBGR_polar-angle">YBGR_polar-angle</option>
+              <option value="YBGR_polar-angle-flipped">YBGR_polar-angle-flipped</option>
             </select>
           </div>
           <div class="row">
@@ -387,7 +396,7 @@
           <small>Processed locally in this browser — nothing is uploaded.</small>
         </div>
         <!-- The scale for whichever overlay the controls are editing. A wheel for
-             the two retinotopy maps, a bar for the rest; the ticks are text so the
+             the retinotopy maps, a bar for the rest; the ticks are text so the
              values can be read and selected. -->
         <figure id="colorLegend" class="color-legend" hidden>
           <button type="button" id="colorLegendClose" class="color-legend-close"

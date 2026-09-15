@@ -156,14 +156,42 @@ which is why the algorithm suite is fast and deterministic. Only `main.js` and
   It does *not* follow that any edge-to-edge line separates the surface — one joining
   two distinct cuts turns an annulus into a disk without dividing it — so the component
   count is checked, never assumed.
-- **`eccentricity` and `polar_angle` (DL) carry a display window; the other colour
-  maps do not.** `polar_angle` is cyclic — it ends on the colour it starts on,
-  because 0 and 2π are the same direction — so under the default 2nd–98th
-  percentile window the wrap falls inside the data and two angles a quarter-turn
-  apart render identically: a plausible picture that is simply wrong, which is
-  worse than an ugly one. `eccentricity` must start at zero or two subjects are
-  not comparable. `colormapWindow` in `niivue/colormaps.js` owns the rule and is
-  pure, so it unit-tests with the rest. The unit is read off the data rather than
+- **The retinotopy maps carry a display window; the other colour maps do not.**
+  They are `RYGBP_eccentricity`, `RYBC_eccentricity`, `YBGR_polar-angle` (DL),
+  `RYGBP_polar-angle` and `RYBC_polar-angle`,
+  and each is named for the colour sequence it runs through, because several
+  conventions are in use and a bare "polar angle" said nothing about which one
+  you were looking at. **The name is the sequence, so the first letter is the
+  colour at 0** — on a polar-angle wheel that is the right horizontal
+  meridian, on an eccentricity map the fovea. The same sequence can sit under
+  two keys with two roles (`RYBC` does); the polar-angle version repeats its
+  first colour at the full turn and the eccentricity version does not.
+- **The `-flipped` polar-angle maps are derived by `mirrorPolarAngle`, never
+  transcribed.** They exist so a left and a right hemisphere can be read with
+  the same wheel: the colour at θ is the original's at π − θ, i.e. LUT index
+  j ← (128 − j) mod 256. This is the *only* place a mirror belongs. The wheel
+  in `colorLegend.js` samples the LUT by azimuth and must stay as it is —
+  mirroring the wheel instead of the map would show the right colours on the
+  legend and the wrong ones on the surface. Two traps in the mirror itself:
+  NiiVue's `makeLut` divides by the segment length, so two stops on one index
+  paint that entry black (stops are keyed by index for that reason), and the
+  ends at 0 and 255 are not control points of the original, so they are
+  sampled from it (`sampleControlPoints`, which interpolates the way NiiVue
+  does). A nearly cyclic map keeps its seam, moved to the left meridian. A polar-angle map is cyclic — it ends
+  on the colour it starts on, because 0 and 2π are the same direction — so
+  under the default 2nd–98th percentile window the wrap falls inside the data
+  and two angles a quarter-turn apart render identically: a plausible picture
+  that is simply wrong, which is worse than an ugly one. Eccentricity must
+  start at zero or two subjects are not comparable. `colormapWindow` in
+  `niivue/colormaps.js` owns the rule and is pure, so it unit-tests with the
+  rest. **The rule and the legend are keyed on `colormapRole(key)`, not on the
+  key**, so a new polar-angle palette is one entry in `COLORMAP_ROLES` and
+  nothing else. `RYGBP_polar-angle` shares its control points with
+  `gist_rainbow` on purpose: the *colours* are the same, the role is what
+  differs, and under the plain `gist_rainbow` key those colours still get a bar
+  and no window. It is only nearly cyclic (matplotlib's ends are a red and a
+  magenta), which leaves a faint seam on the right horizontal meridian; that
+  is the map as the field knows it and is not to be "fixed". The unit is read off the data rather than
   configured — an angle map in degrees never peaks below 7 and one in radians
   never above 2π — and values fitting neither convention return null rather than
   get a turn invented for them. `state.overlayAutoRange` is never overwritten, so
