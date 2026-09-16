@@ -15,6 +15,9 @@ export async function loadStandalone(registry, root = repoRoot) {
       if (!Array.isArray(app[key])) throw new Error(`${id}: missing ${key}`);
     }
     validateDownloads(app.downloads, id);
+    if (app.openrecon && (typeof app.openrecon.label !== 'string' || !app.openrecon.label.trim() || typeof app.openrecon.recipe !== 'string' || !/^[a-z0-9][a-z0-9_-]*$/.test(app.openrecon.recipe))) {
+      throw new Error(`${id}: OpenRecon requires a package label and recipe name`);
+    }
   }
   if (value.suite) validateDownloads(value.suite.downloads, 'suite');
   return value;
@@ -28,7 +31,7 @@ function validateDownloads(downloads, id) {
       if (!/^[a-f0-9]{64}$/.test(file.sha256)) throw new Error(`${id}: download must have a checksum`);
     }
     if (!download.platform || !download.version || !['desktop', 'cli', 'container'].includes(download.kind)) throw new Error(`${id}: incomplete release metadata`);
-    if (download.kind === 'desktop' && download.modelsIncluded !== true) throw new Error(`${id}: desktop package must include models`);
+    if (typeof download.modelsIncluded !== 'boolean') throw new Error(`${id}: declare whether models are included`);
   }
 }
 
@@ -37,7 +40,7 @@ export async function stageStandaloneAssets(destination) {
   await cp(join(repoRoot, 'registry/standalone.json'), join(destination, 'standalone.json'));
   const components = join(destination, 'shell-adapters/components');
   for (const directory of ['core', 'ui', 'styles']) await mkdir(join(components, directory), { recursive: true });
-  for (const name of ['core/dom.js', 'ui/renderInfoDialog.js', 'ui/renderStandalone.js', 'styles/imaging-workspace.css', 'styles/base.css']) {
+  for (const name of ['core/dom.js', 'ui/renderInfoDialog.js', 'ui/renderStandalone.js', 'ui/renderExampleSelector.js', 'styles/imaging-workspace.css', 'styles/base.css']) {
     await cp(join(repoRoot, 'packages/components/src', name), join(components, name));
   }
 }

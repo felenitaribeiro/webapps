@@ -1,12 +1,32 @@
 # greedy
 
+## 0.3.20260916
+
+### Patch Changes
+
+- Standardize example selection across the app catalog with complete scientific input bundles, shared cancellation and retry, and explicit processing. Add missing examples, curate existing datasets, fix QSMbly retry and TopoFit cancellation, and require example manifests and browser coverage for every app and the generator.
+- Updated dependencies
+  - @neurodesk/webapp-components@0.3.0
+  - @neurodesk/greedy@0.3.20260916
+
 ## 0.3.20260915
+
+### Patch Changes
+
+- Updated dependencies
+  - @neurodesk/webapp-components@0.2.2
+  - @neurodesk/greedy@0.3.20260915
+
+### Patch Changes
+
+- Updated dependencies
+  - @neurodesk/webapp-components@0.2.1
+  - @neurodesk/greedy@0.3.20260915
 
 ### Patch Changes
 
 - Reject out-of-field registration trial coordinates before integer conversion, preventing a threaded WebAssembly crash during SYNcro normalization. Include complete desktop and HPC release packaging with offline workflow gates.
   - @neurodesk/greedy@0.3.20260915
-
 
 ### Minor Changes
 

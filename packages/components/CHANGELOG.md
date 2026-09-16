@@ -1,5 +1,23 @@
 # @neurodesk/webapp-components
 
+## 0.3.0
+
+### Minor Changes
+
+- Standardize example selection across the app catalog with complete scientific input bundles, shared cancellation and retry, and explicit processing. Add missing examples, curate existing datasets, fix QSMbly retry and TopoFit cancellation, and require example manifests and browser coverage for every app and the generator.
+
+## 0.2.2
+
+### Patch Changes
+
+- Add OpenRecon scanner-console package links to Standalone for MuscleMap, QSMbly via QSMxT, Spinal Cord Toolbox, SynthSeg, TopoFit and VesselBoost. Link to Siemens teamplay C2P for official packages and neurodesk/openrecon for builds.
+
+## 0.2.1
+
+### Patch Changes
+
+- Offer desktop and HPC downloads both with and without models. Put official Neurodesk Docker and Apptainer downloads first, simplify installation details, and separate standalone choices into clear sections.
+
 ## 0.2.0
 
 ### Minor Changes

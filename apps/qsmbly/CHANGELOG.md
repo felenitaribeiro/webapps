@@ -1,6 +1,30 @@
 # qsmbly
 
+## 0.26.20260916
+
+### Minor Changes
+
+- Initialize upload controllers before fetching the example catalog. Keep file pickers disabled until initialization finishes, and preserve DICOM imports when the catalog is slow or unavailable.
+
+## 0.25.20260916
+
+### Patch Changes
+
+- Standardize example selection across the app catalog with complete scientific input bundles, shared cancellation and retry, and explicit processing. Add missing examples, curate existing datasets, fix QSMbly retry and mask worker messaging, fix TopoFit cancellation, and require example manifests and browser coverage for every app and the generator.
+- Updated dependencies
+  - @neurodesk/webapp-components@0.3.0
+
 ## 0.25.20260915
+
+### Patch Changes
+
+- Updated dependencies
+  - @neurodesk/webapp-components@0.2.2
+
+### Patch Changes
+
+- Updated dependencies
+  - @neurodesk/webapp-components@0.2.1
 
 ### Minor Changes
 

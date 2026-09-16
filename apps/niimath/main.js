@@ -1,12 +1,12 @@
 import './style.css'
 import '@neurodesk/webapp-components/styles/imaging-workspace.css'
 import { mountImagingWorkspace } from '@neurodesk/webapp-components/core/mount-imaging-workspace'
-import { bindFileDrop } from '@neurodesk/webapp-components/ui'
+import { bindFileDrop, renderExampleSelector } from '@neurodesk/webapp-components/ui'
 import { readImageFiles } from '@neurodesk/runtime-support/dcm2niix-client'
 import { Niivue, SLICE_TYPE, SHOW_RENDER, MULTIPLANAR_TYPE } from '@niivue/niivue'
 import { Niimath } from "@niivue/niimath"
 
-import { NIFTI_EXAMPLES, NIIMATH_EXAMPLE_BASE_URL as ASSET_BASE_URL } from '@neurodesk/webapp-components/example-images'
+import examples from './examples.json'
 
 mountImagingWorkspace({
   controls: 'body > header',
@@ -30,6 +30,32 @@ console.log(niimath);
 // store a reference to an unedited image for
 // use when the user wants to change the command from the dropdown
 let uneditedImage;
+let imageBusy = false;
+let imageProcessingReady = false;
+
+function updateImageControls() {
+  const disabled = imageBusy || !imageProcessingReady;
+  for (const control of document.querySelectorAll('#niftiInput, #dicomInput, #dicomPick, #moreCommands')) {
+    control.disabled = disabled;
+  }
+  exampleControl.setDisabled(disabled);
+  document.getElementById("moreCommands").disabled = disabled || !uneditedImage;
+  document.getElementById("processButton").disabled = disabled || !uneditedImage;
+  document.getElementById("saveButton").disabled = disabled || !uneditedImage;
+  document.getElementById("resetButton").disabled = disabled || !uneditedImage;
+}
+
+async function runImageTask(task) {
+  if (imageBusy || !imageProcessingReady) return;
+  imageBusy = true;
+  updateImageControls();
+  try {
+    await task();
+  } finally {
+    imageBusy = false;
+    updateImageControls();
+  }
+}
 
 async function processImage(isOverlay) {
   loadingCircle.classList.remove('hidden')
@@ -83,7 +109,7 @@ async function processImage(isOverlay) {
 // respond to our button press
 function buttonProcessImage() {
   const isOverlay = overlayCheck.checked;
-  processImage(isOverlay);
+  void runImageTask(() => processImage(isOverlay));
 }
 
 // set overlay opacity
@@ -207,26 +233,13 @@ function moreCommandsSelected() {
   buttonProcessImage();
 }
 
-async function loadImage(url) {
-  // remove all meshes and volumes
-  for (let i = 0; i < nv.meshes.length; i++) {
-    nv.removeMesh(nv.meshes[i]);
-  }
-  for (let i = 0; i < nv.volumes.length; i++) {
-    nv.removeVolume(nv.volumes[i]);
-  }
-  let volumeList = [{ url: url },];
-  await nv.loadVolumes(volumeList);
-  // set the unedited image to the loaded image
-  uneditedImage = nv.volumes[0];
-  nv.updateGLVolume();
-}
-
-async function loadFile(file) {
+async function loadFile(file, signal) {
   const bytes = await file.arrayBuffer()
+  signal?.throwIfAborted()
   for (const mesh of [...nv.meshes]) nv.removeMesh(mesh)
   for (const volume of [...nv.volumes]) nv.removeVolume(volume)
   await nv.loadFromArrayBuffer(bytes, file.name)
+  signal?.throwIfAborted()
   uneditedImage = nv.volumes[0]
   nv.updateGLVolume()
 }
@@ -245,7 +258,7 @@ async function loadDicomFiles(files) {
     }
     dicomPick.classList.toggle('hidden', converted.length < 2)
     await loadFile(converted[0])
-    dicomPick.onchange = () => void loadFile(converted[Number(dicomPick.value)])
+    dicomPick.onchange = () => void runImageTask(() => loadFile(converted[Number(dicomPick.value)]))
   } catch (error) {
     console.error(error)
     window.alert(error instanceof Error ? error.message : String(error))
@@ -254,6 +267,18 @@ async function loadDicomFiles(files) {
   }
 }
 
+
+const exampleControl = renderExampleSelector({
+  examples,
+  onLoad: async (_example, { fetchFiles, signal, assertCurrent }) => {
+    const [file] = await fetchFiles()
+    assertCurrent()
+    if (imageBusy || !imageProcessingReady) throw new Error("Wait for the current image operation to finish.")
+    await runImageTask(() => loadFile(file, signal))
+  },
+})
+document.getElementById('exampleControl').append(exampleControl.root)
+exampleControl.setDisabled(true)
 
 async function main() {
 
@@ -282,15 +307,9 @@ async function main() {
   function initializeImageProcessing() {
     // await initWasm();
     let button = document.getElementById('processButton');
-    button.disabled = false;
+    imageProcessingReady = true;
+    updateImageControls();
     button.onclick = buttonProcessImage;
-  }
-  const imgEl = document.getElementById("images");
-  for (const example of NIFTI_EXAMPLES) {
-    const btn = document.createElement("button");
-    btn.textContent = example.id;
-    btn.onclick = () => loadImage(example.url);
-    imgEl.appendChild(btn);
   }
   saveButton.onclick = function () {
     if (nv.volumes.length < 2)
@@ -300,34 +319,31 @@ async function main() {
   }
   niftiInput.onchange = async function () {
     const files = Array.from(niftiInput.files ?? [])
-    if (files.length) await loadDicomFiles(files)
+    if (files.length) await runImageTask(() => loadDicomFiles(files))
     niftiInput.value = ''
   }
   dicomInput.onchange = async function () {
     const files = Array.from(dicomInput.files ?? [])
-    if (files.length > 0) await loadDicomFiles(files)
+    if (files.length > 0) await runImageTask(() => loadDicomFiles(files))
     dicomInput.value = ''
   }
-  bindFileDrop(document.getElementById('inputDropZone'), async (pending) => {
+  bindFileDrop(document.getElementById('inputDropZone'), (pending) => runImageTask(async () => {
     const files = await pending
     if (files.length) await loadDicomFiles(files)
-  })
+  }))
   helpButton.onclick = function () {
     // open link in new tab
     const link = "https://github.com/rordenlab/niimath/blob/9f3a301be72c331b90ef5baecb7a0232e9b47ba4/src/niimath.c#L259"
     window.open(link, '_blank');
   }
 
+  updateImageControls();
   let canvas = document.getElementById('gl');
   nv.setInterpolation(true);
   nv.attachToCanvas(canvas);
   nv.setSliceType(SLICE_TYPE.MULTIPLANAR)
   nv.setMultiplanarLayout(MULTIPLANAR_TYPE.GRID)
   nv.opts.multiplanarShowRender = SHOW_RENDER.ALWAYS
-  var volumeList = [{ url: `${ASSET_BASE_URL}fa8.nii.gz` },];
-  await nv.loadVolumes(volumeList);
-  uneditedImage = nv.volumes[0];
-
   // initialize niimath (loads wasm and sets up worker)
   await niimath.init();
   console.log(niimath);

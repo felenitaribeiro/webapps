@@ -7,7 +7,15 @@ test('app-local changes select only that webapp', async () => {
   const registry = await loadAppsRegistry();
   const plan = createAppPlan(registry, ['apps/niimath/main.js']);
   assert.deepEqual(plan.selected.map((app) => app.id), ['niimath']);
-  assert.deepEqual(plan.browserApps.include, []);
+  assert.deepEqual(plan.browserApps.include.map(({ app }) => app), ['niimath']);
+});
+
+test('QSMbly runtime changes also select Brain extraction for browser tests and release', async () => {
+  const registry = await loadAppsRegistry();
+  const plan = createAppPlan(registry, ['apps/qsmbly/rust-wasm/src/lib.rs']);
+  assert.deepEqual(plan.selected.map(app => app.id), ['qsmbly', 'brain-extraction']);
+  assert.ok(plan.browserApps.include.some(({ app }) => app === 'brain-extraction'));
+  assert.ok(plan.releaseApps.include.some(({ app }) => app === 'brain-extraction'));
 });
 
 test('app registration and lockfile updates stay scoped to that webapp', async () => {
@@ -43,7 +51,7 @@ test('toolchain facts are carried into generated matrices', async () => {
     rust_wasm: true,
     python_reference: false,
     shared_runtime: false,
-    browser_test: false,
+    browser_test: true,
     app_scoped_runtime: false,
     release_test: 'test',
   }]);

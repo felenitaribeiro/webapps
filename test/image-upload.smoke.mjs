@@ -13,6 +13,10 @@ const browser = await chromium.launch({ args: ['--enable-webgl', '--use-gl=angle
 const failures = [];
 if (process.env.UPLOAD_ARTIFACTS) await mkdir(process.env.UPLOAD_ARTIFACTS, { recursive: true });
 const checks = [
+  ['brain-extraction', '#imageInput', async page => {
+    await expect(page.locator('#fileInfo')).toContainText('16 × 16 × 4');
+    await expect(page.locator('#runButton')).toBeEnabled();
+  }],
   ['syncro', '#input', async page => {
     await expect(page.locator('#primaryInfo')).toContainText('16 × 16 × 4');
     await expect(page.locator('#runButton')).toBeEnabled();
@@ -67,7 +71,7 @@ try {
       await page.waitForLoadState('load');
       const enter = page.locator('#enterAppButton:visible, #landingLaunch:visible');
       if (await enter.count()) await enter.first().click();
-      await expect(page.locator(selector)).toBeAttached();
+      await expect(page.locator(selector)).toBeEnabled();
       await page.locator(selector).setInputFiles(dicomSeries({ extension: '.IMA' }));
       await verify(page);
       if (process.env.UPLOAD_ARTIFACTS) {

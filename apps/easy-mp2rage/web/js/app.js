@@ -1,3 +1,4 @@
+import { renderExampleSelector } from '../vendor/webapp-components/src/ui/index.js';
 // Easy MP2RAGE T1 Map, in-browser controller.
 // Parses NIfTI in JS (nifti.js), runs the WASM core in a Web Worker, previews
 // with a self-contained canvas viewer, and offers client-side downloads. Your
@@ -95,6 +96,11 @@ function guessRole(name) {
   return '(ignore)';
 }
 
+async function readImageRecord(file, buffer) {
+  const nii = await readNifti(buffer);
+  return { name: file.name, size: file.size, dims: nii.dims, affine: nii.affine, data: nii.data, role: guessRole(file.name) };
+}
+
 async function addFiles(fileList) {
   if (appMode === 'bids') { log('In BIDS mode, switch to "Single dataset" to load individual files.'); return; }
   for (const file of fileList) {
@@ -111,10 +117,9 @@ async function addFiles(fileList) {
     }
     if (!/\.nii(\.gz)?$/.test(lower)) { log(`skipped ${file.name} (not .nii/.nii.gz/.json)`); continue; }
     try {
-      const nii = await readNifti(buf);
-      const rec = { name: file.name, size: file.size, dims: nii.dims, affine: nii.affine, data: nii.data, role: guessRole(file.name) };
+      const rec = await readImageRecord(file, buf);
       state.files.push(rec);
-      log(`loaded ${file.name}  [${nii.dims.join('×')}]  → ${rec.role}`);
+      log(`loaded ${file.name}  [${rec.dims.join('×')}]  → ${rec.role}`);
     } catch (e) { log(`failed to read ${file.name}: ${e}`); }
   }
   renderTable(); refreshRunState();
@@ -1563,3 +1568,35 @@ refreshRunState();
 log('Ready. Drop files or DICOM folders, pick a task, and Compute. All image processing runs locally, your images never leave the tab.');
 
 document.getElementById('aboutButton').addEventListener('click', () => document.getElementById('aboutDialog').showModal());
+
+async function setupExamples() {
+  const response = await fetch(new URL('examples.json', document.baseURI));
+  if (!response.ok) throw new Error('Could not load the example catalog.');
+  const examples = await response.json();
+  const selector = renderExampleSelector({
+    examples,
+    onLoad: async (example, { fetchFiles, assertCurrent }) => {
+      if (running) throw new Error('Stop processing before loading an example.');
+      const files = await fetchFiles();
+      assertCurrent();
+      const records = await Promise.all(files.map(async file => readImageRecord(file, await file.arrayBuffer())));
+      assertCurrent();
+      if (running) throw new Error('Stop processing before loading an example.');
+      setAppMode('single');
+      state.files = records;
+      state.jsons = [];
+      for (const [prefix, parameters] of Object.entries(example.parameters)) {
+        for (const [name, value] of Object.entries(parameters)) {
+          $(`#${prefix}_${name}`).value = value;
+        }
+      }
+      $('#paramSource').value = 'manual';
+      $('#paramSrcNote').textContent = 'Matched synthetic example acquisition';
+      renderTable();
+      refreshRunState();
+    },
+    onStatus: message => log(message),
+  });
+  $('.modeToggle').before(selector.root);
+}
+void setupExamples().catch(error => log(error.message));

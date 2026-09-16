@@ -144,6 +144,7 @@ apps:
     ci:
       toolchains: [node, rust-wasm]
       shared_runtime: true
+      browser_test: true
       release: true
   - id: seedseg
     path: seedseg
@@ -164,6 +165,7 @@ apps:
     ci:
       toolchains: [node]
       shared_runtime: true
+      browser_test: true
       release: true
   - id: dicompare
     path: dicompare
@@ -183,6 +185,7 @@ apps:
     ci:
       toolchains: [node]
       shared_runtime: false
+      browser_test: true
       release: true
   - id: deface
     path: deface
@@ -222,6 +225,7 @@ apps:
     ci:
       toolchains: [node, rust-wasm]
       shared_runtime: false
+      browser_test: true
       release: true
   - id: niimath
     path: niimath
@@ -241,6 +245,7 @@ apps:
     ci:
       toolchains: [node]
       shared_runtime: false
+      browser_test: true
       release: true
   - id: dicom2vid
     path: dicom2vid
@@ -380,7 +385,7 @@ apps:
     maintainers: [neurodesk]
     support_status: active
     shell: imaging-workspace
-    app_scoped_runtime_families: [ort-web-asyncify]
+    app_scoped_runtime_families: [ort-web-asyncify, mindgrab-cpu]
     ci:
       toolchains: [node, rust-wasm]
       shared_runtime: false
@@ -441,6 +446,7 @@ apps:
     maintainers: [neurodesk]
     support_status: active
     shell: imaging-workspace
+    app_scoped_runtime_families: [mindgrab-cpu]
     ci:
       toolchains: [node, rust-wasm]
       shared_runtime: false
@@ -461,6 +467,7 @@ apps:
     maintainers: [neurodesk]
     support_status: active
     shell: imaging-workspace
+    app_scoped_runtime_families: [mindgrab-cpu]
     ci:
       toolchains: [node]
       shared_runtime: false
@@ -522,8 +529,30 @@ apps:
     maintainers: [neurodesk]
     support_status: active
     shell: imaging-workspace
+    app_scoped_runtime_families: [mindgrab-cpu]
     ci:
       toolchains: [node]
+      shared_runtime: false
+      browser_test: true
+      release: true
+  - id: brain-extraction
+    path: brain-extraction
+    title: Brain extraction
+    description: Extract the brain and a brain mask with BET, MindGrab or SynthStrip, locally in your browser.
+    categories: [segmentation-analysis, data-preparation]
+    keywords: [brain, skull-stripping, BET, MindGrab, SynthStrip]
+    legacy_domain: null
+    runtime: vite-wasm
+    model_manifest: null
+    asset_manifest_schema: null
+    source: neurodesk/webapps@local
+    license: Apache-2.0
+    maintainers: [neurodesk]
+    support_status: experimental
+    shell: imaging-workspace
+    app_scoped_runtime_families: [ort-web-asyncify, dcm2niix, mindgrab-cpu]
+    ci:
+      toolchains: [node, rust-wasm]
       shared_runtime: false
       browser_test: true
       release: true

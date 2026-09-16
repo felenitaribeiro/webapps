@@ -1,4 +1,5 @@
 import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { readFile, readdir, mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -8,7 +9,7 @@ import { dicomSeries } from '../../test-utils/dicom-fixture.mjs';
 import { expect } from '@playwright/test';
 import { verifyMuscleMapFullPipeline, createSyntheticMuscleMapNifti } from '../../test/musclemap-full-pipeline-smoke.mjs';
 
-export const workflowApps = ['musclemap', 'vesselboost', 'spinalcordtoolbox', 'calmar', 'qsmbly', 'seedseg', 'dicompare', 'deface', 'easy-mp2rage', 'niimath', 'dicom2vid', 'browserqc', 'surfannotate', 'zarro', 'synthsr', 'synthseg', 'syncro', 'dwi2trx', 'edgereg', 'greedy', 'ants', 'brain2print', 'topofit', 'fireants'];
+export const workflowApps = ['musclemap', 'vesselboost', 'spinalcordtoolbox', 'calmar', 'qsmbly', 'seedseg', 'dicompare', 'deface', 'easy-mp2rage', 'niimath', 'dicom2vid', 'browserqc', 'surfannotate', 'zarro', 'synthsr', 'synthseg', 'syncro', 'dwi2trx', 'edgereg', 'greedy', 'ants', 'brain2print', 'topofit', 'fireants', 'brain-extraction'];
 
 export async function verifyWorkflow(id, page, { root, resources, desktop }) {
   const fixture = join(root, 'exes/synthseg/test/fixtures/small.nii.gz');
@@ -36,7 +37,25 @@ export async function verifyWorkflow(id, page, { root, resources, desktop }) {
     assert.ok(bytes.length > 352, 'Output must contain image data');
     return { filename: data.filename, bytes: data.bytes.length };
   };
+  if (['deface', 'brain2print', 'dwi2trx', 'ants', 'greedy', 'edgereg', 'fireants'].includes(id)) {
+    const examples = JSON.parse(await readFile(join(root, 'apps', id, 'examples.json')));
+    const selector = page.getByRole('combobox', { name: 'Example', exact: true });
+    await expect(selector).toBeEnabled({ timeout: 120000 });
+    await selector.selectOption(examples[0].id);
+    await expect(page.locator('[data-neurodesk-examples]')).toHaveAttribute('data-example-state', 'ready', { timeout: 120000 });
+  }
   if (id === 'musclemap') return verifyMuscleMapFullPipeline(page, page.url());
+  if (id === 'brain-extraction') {
+    await page.locator('#imageInput').setInputFiles(join(root, 'apps/calmar/tests/fixtures/synthstrip-mini/T1.nii.gz'));
+    await expect(page.locator('#runButton')).toBeEnabled({ timeout: 60000 });
+    await page.locator('#method').selectOption('bet');
+    await page.locator('#runButton').click();
+    await expect(page.locator('#statusText')).toHaveText('Brain image and mask ready', { timeout: 120000 });
+    const brain = await download('#resultList .nd-volume-toggle:nth-child(2) .nd-download-btn');
+    const mask = await download('#resultList .nd-volume-toggle:nth-child(3) .nd-download-btn');
+    assert.equal(createHash('sha256').update(mask.bytes.subarray(352)).digest('hex'), '107a46c3a2f42f4a7796dc5a5b2a6660a302239ae50a0cf2eea80b1767a50862');
+    return { brain: nifti(brain), mask: nifti(mask) };
+  }
   if (['vesselboost', 'spinalcordtoolbox', 'seedseg'].includes(id)) {
     await page.locator(id === 'seedseg' ? '#unifiedFiles' : '#fileInput').setInputFiles(id === 'seedseg' ? { name: 'scan_T1w.nii.gz', mimeType: 'application/gzip', buffer: await readFile(fixture) } : fixture);
     if (id === 'vesselboost') {
@@ -57,10 +76,8 @@ export async function verifyWorkflow(id, page, { root, resources, desktop }) {
     return result;
   }
   if (['ants', 'greedy', 'edgereg', 'fireants'].includes(id)) {
-    if (id === 'ants' || id === 'fireants') {
-      await expect(page.locator('#runButton')).toBeEnabled({ timeout: 120000 });
-      await page.locator('#runButton').click();
-    }
+    await expect(page.locator('#runButton')).toBeEnabled({ timeout: 120000 });
+    await page.locator('#runButton').click();
     await expect(page.locator('#statusText')).toContainText('Registration complete', { timeout: 900000 });
     return nifti(await download('#resultList button:has-text("Download") >> nth=0'));
   }
@@ -108,7 +125,30 @@ export async function verifyWorkflow(id, page, { root, resources, desktop }) {
     return nifti(await download(selector));
   }
   if (id === 'niimath') {
-    await page.locator('#niftiInput').setInputFiles(fixture);
+    await expect(page.locator('#niftiInput')).toBeEnabled({ timeout: 60000 });
+    const releaseUpload = await page.evaluateHandle(() => {
+      const original = File.prototype.arrayBuffer;
+      let release;
+      const pending = new Promise(resolve => { release = resolve; });
+      File.prototype.arrayBuffer = async function () {
+        await pending;
+        return original.call(this);
+      };
+      return () => {
+        File.prototype.arrayBuffer = original;
+        release();
+      };
+    });
+    try {
+      await page.locator('#niftiInput').setInputFiles(fixture);
+      await expect(page.locator('#processButton')).toBeDisabled();
+      await expect(page.locator('#niftiInput')).toBeDisabled();
+      await expect(page.locator('#moreCommands')).toBeDisabled();
+      await expect(page.locator('#saveButton')).toBeDisabled();
+    } finally {
+      await releaseUpload.evaluate(release => release());
+      await releaseUpload.dispose();
+    }
     await page.locator('#command').fill('-add 1');
     await expect(page.locator('#processButton')).toBeEnabled({ timeout: 60000 });
     await page.locator('#processButton').click();
@@ -197,6 +237,8 @@ export async function verifyWorkflow(id, page, { root, resources, desktop }) {
   }
   if (id === 'browserqc') {
     await page.locator('#niftiInput').setInputFiles(fixture);
+    await expect(page.locator('#runButton')).toBeEnabled({ timeout: 120000 });
+    await page.locator('#runButton').click();
     await expect(page.locator('#saveBtn')).toBeEnabled({ timeout: 600000 });
     await page.locator('#resultsSection').evaluate(section => { section.open = true; });
     const result = await download('#saveBtn');

@@ -8,8 +8,11 @@ import {
   createInfoDialog,
   renderConsole,
   renderViewerToolbar,
+  renderExampleSelector,
 } from "@neurodesk/webapp-components/ui";
+import { downloadFile } from "@neurodesk/webapp-components/file-io";
 import { APP } from "./config.js";
+import examples from "../examples.json";
 
 const $ = (id) => document.getElementById(id);
 
@@ -37,8 +40,8 @@ $("privacyBtn").onclick = () => info.open("Privacy", $("privacyContent"));
 // 4. Workflow: input → run → results. Replace the bodies with the science.
 const results = new StageResultList({
   element: $("resultList"),
-  onView: (stage) => status(`Viewing ${stage}`),
-  onDownload: (stage) => status(`Downloading ${stage}`),
+  onView: (_stage, result) => status(`${result.file.name} · unchanged input copy`),
+  onDownload: (_stage, result) => downloadFile(result.file),
 });
 let source = null;
 
@@ -48,33 +51,83 @@ function status(message, error = false) {
   log.log(message, error ? "error" : "info");
 }
 
-function loadFiles(filesPromise) {
-  filesPromise.then((files) => {
-    source = files[0] ?? null;
-    $("fileInfo").hidden = !source;
-    $("fileInfo").textContent = source ? source.name : "";
-    $("dropZone").classList.toggle("has-files", Boolean(source));
-    $("emptyState").hidden = Boolean(source);
+let loading = null;
+async function loadFiles(filesPromise, signal) {
+  if (loading) throw new Error("An image is still loading. Wait or cancel, then retry.");
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal?.throwIfAborted();
+  signal?.addEventListener("abort", abort, { once: true });
+  loading = controller;
+  $("imageInput").disabled = true;
+  exampleControl.setDisabled(true);
+  $("runButton").disabled = true;
+  $("cancelButton").hidden = false;
+  status("Loading image…");
+  try {
+    const files = await filesPromise;
+    controller.signal.throwIfAborted();
+    if (files.length !== 1 || !files[0].size) throw new Error("Choose one nonempty image for the pass-through demonstration.");
+    await files[0].arrayBuffer();
+    controller.signal.throwIfAborted();
+    source = files[0];
+    results.render();
+    $("outputSection").open = false;
+    $("progress").value = 0;
+    $("fileInfo").hidden = false;
+    $("fileInfo").textContent = source.name;
+    $("dropZone").classList.add("has-files");
+    $("emptyState").hidden = true;
+    status(`${source.name} loaded`);
+  } finally {
+    signal?.removeEventListener("abort", abort);
+    loading = null;
+    $("imageInput").disabled = false;
+    exampleControl.setDisabled(false);
     $("runButton").disabled = !source;
-    status(source ? `${source.name} loaded` : "Ready");
-  });
+    $("cancelButton").hidden = true;
+  }
 }
+function importFiles(files) {
+  exampleControl.cancel();
+  return loadFiles(files).catch(error => status(
+    error.name === "AbortError" ? "Loading cancelled" : error.message,
+    error.name !== "AbortError",
+  ));
+}
+$("cancelButton").onclick = () => {
+  exampleControl.cancel();
+  loading?.abort();
+};
 $("imageInput").addEventListener("change", (event) => {
   const files = Array.from(event.target.files);
   event.target.value = "";
-  if (files.length) loadFiles(Promise.resolve(files));
+  if (files.length) void importFiles(Promise.resolve(files));
 });
-bindFileDrop($("dropZone"), loadFiles);
-$("exampleButton").addEventListener("click", () => status("Add an example image URL to load here"));
+bindFileDrop($("dropZone"), importFiles);
+const exampleControl = renderExampleSelector({
+  examples,
+  onStatus: status,
+  onLoad: async (_example, { fetchFiles, assertCurrent, signal }) => {
+    const files = await fetchFiles();
+    assertCurrent();
+    await loadFiles(Promise.resolve(files), signal);
+    assertCurrent();
+  },
+});
+$("exampleControl").append(exampleControl.root);
 
 $("runButton").addEventListener("click", () => {
-  status("Processing…");
-  $("progress").value = 0.5;
-  // Run the worker here, then publish outputs:
-  results.render({ output: { description: "Processed image" } });
+  if (!source || loading) return;
+  // Replace this explicit pass-through demonstration with the app's method.
+  results.render({ output: { description: "Unchanged input copy", file: source } });
   $("outputSection").open = true;
   $("progress").value = 1;
-  status("Processing complete");
+  status("Input copy ready · no scientific processing applied");
+});
+window.addEventListener("pagehide", () => {
+  exampleControl.destroy();
+  loading?.abort();
 });
 
 export default Object.freeze({ workspace, toolbar, log, info, results });

@@ -447,7 +447,22 @@ h1 {
 
 @media (max-width: 700px) {
   .site-header__inner, main, .site-footer__inner { width: min(100% - 2rem, 76rem); }
-  .site-nav a { display: none; }
+  .site-header__inner {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding-block: 0.75rem;
+  }
+  .site-nav {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  .site-nav a,
+  .site-nav button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    min-width: 44px;
+  }
   .hero { padding-top: 3.5rem; }
   h1 { font-size: clamp(2.2rem, 10vw, 3rem); }
   .search-box kbd { display: none; }

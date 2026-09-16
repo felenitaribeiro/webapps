@@ -13,7 +13,7 @@
       Do not add app CSS for anything shown here. See docs/architecture/design-system.md.
     -->
     <header id="controls">
-      <!-- 1. Input: open, one compact scan picker, optional example. -->
+      <!-- 1. Input: open, one compact scan picker, working example. -->
       <details class="nd-sidebar-section" id="inputSection" open>
         <summary class="nd-section-title">Input image</summary>
         <div class="nd-section-content">
@@ -23,7 +23,7 @@
             <span>Drop NIfTI or DICOM files or folder</span>
           </label>
           <p id="fileInfo" class="nd-file-info" hidden></p>
-          <button id="exampleButton" class="nd-btn nd-btn-secondary nd-btn-sm" type="button">Load example image</button>
+          <div id="exampleControl"></div>
         </div>
       </details>
 
@@ -46,7 +46,7 @@
               <label class="nd-check"><input id="option" type="checkbox" checked /> Example option</label>
             </div>
           </details>
-          <button id="runButton" class="nd-btn nd-btn-primary" type="button" disabled>Run processing</button>
+          <button id="runButton" class="nd-btn nd-btn-primary" type="button" disabled>Prepare input copy</button>
         </div>
       </details>
 

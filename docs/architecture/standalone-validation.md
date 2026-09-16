@@ -43,6 +43,26 @@ The x86-64 distribution also ran in Docker on the local Apple silicon host throu
 
 [Neurodesk Webapps 0.1.20260915](https://github.com/neurodesk/webapps/releases/tag/webapps-v0.1.20260915) was published from `89282bd`. [Release run 34948689850](https://github.com/neurodesk/webapps/actions/runs/34948689850) passed every job: locked bundle, macOS ARM64, Windows x64, Linux x64, Docker, Apptainer and publication. macOS signing and Apple notarization succeeded. The Linux container matrix started all 24 apps with networking disabled; Docker and Apptainer batch outputs passed the numerical check.
 
+## Editions with and without models, 15 September 2026
+
+[Release run 34984278938](https://github.com/neurodesk/webapps/actions/runs/34984278938), source `59dd783`, tested both editions on macOS ARM64, Windows x64 and Linux x64. All six platform/edition jobs passed the 24-app startup checks, eight portable workflows and the installed executable checks. Both Linux editions also passed the Docker startup test with networking disabled and the Docker/Apptainer numerical batch tests. [Repository CI 34984286284](https://github.com/neurodesk/webapps/actions/runs/34984286284) passed the application, browser and shared interface checks.
+
+Locally, all 24 apps started in the edition without models, including from the packaged macOS executable. MuscleMap and SynthSR completed image workflows after downloading their pinned models. The bundle verifier rejects model files accidentally copied into this edition; a regression test loads the actual Electron Builder configuration and requires exactly one resource directory. Model-cache tests cover integrity failures, retry, concurrent requests, reconstructed model pieces and invalid paths. The full edition has no model-download fallback.
+
+The final repository, desktop and shared layout regression run passed 163 tests. Neurodesk container downloads use the official CVMFS filenames; all 12 assigned Apptainer URLs returned HTTP 200. Docker and Apptainer versions are recorded separately where their published dates differ.
+
+[Neurodesk Webapps 0.2.20260915](https://github.com/neurodesk/webapps/releases/tag/webapps-v0.2.20260915) contains all eight platform/edition downloads. Every published binary URL passed its availability check. A fresh production build using that catalog passed the 24-app interface audit, mobile layouts, six disclosure workflows and all-app Standalone link checks. Desktop and 320-pixel phone screenshots were reviewed; the dialog has no horizontal overflow and orders containers, downloads without models, then downloads with models included.
+
+## OpenRecon links, 15 September 2026
+
+The shared Standalone dialog exposes OpenRecon for MuscleMap, QSMbly through QSMxT, Spinal Cord Toolbox, SynthSeg, TopoFit and VesselBoost. Each mapping was checked against the corresponding recipe in [neurodesk/openrecon](https://github.com/neurodesk/openrecon/). The interface links to Siemens teamplay C2P for the official package, the build repository and the specific recipe. Apps without a mapping omit the section.
+
+Source `ad6f89e` passed 26 focused catalog, design-system and version tests, a fresh production build, the 24-app interface audit, all mobile layouts, six disclosure workflows and the all-app Standalone link test. The link test checks OpenRecon visibility, package names, destinations and section order. Desktop and 320-pixel phone screenshots were reviewed in dark and light themes, with no horizontal overflow. [Web CI 35023309215](https://github.com/neurodesk/webapps/actions/runs/35023309215) passed all application and shared-site checks. These tests cover the webapp integration; they do not run packages on an MRI scanner.
+
+[Release CI 35023235467](https://github.com/neurodesk/webapps/actions/runs/35023235467) passed startup, portable workflow and installed-app checks for both editions on macOS ARM64, Windows x64 and Linux x64. Both Linux editions passed Docker and Apptainer checks. [Suite 0.3.20260915](https://github.com/neurodesk/webapps/releases/tag/webapps-v0.3.20260915) includes the OpenRecon links in the installed application dialogs. All published binary URLs passed availability checks; the final production build passed the 24-app Standalone link test with the updated release catalog.
+
+Brain extraction and suite 0.4.20260915 landed while this change was in progress. The merge preserves that newer 25-app suite in the download catalog and adds the six OpenRecon mappings. Suite 0.4 predates the scanner-link UI; its installed copy receives the links on a subsequent suite release.
+
 ## Release gates
 
 GitHub Actions builds one locked asset bundle, then starts every installed app on macOS ARM64, Linux x64 and Windows x64. Eight CPU-compatible workflows also run on each platform. Packaging is followed by another all-app startup test using the extracted executable. Linux additionally builds a Docker image, tests it with `--network=none`, and executes a batch job from the Apptainer SIF. Publication requires those jobs to pass and checks every archive part and the reassembled archive SHA-256.
