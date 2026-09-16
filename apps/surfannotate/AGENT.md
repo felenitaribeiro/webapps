@@ -349,7 +349,12 @@ which is why the algorithm suite is fast and deterministic. Only `main.js` and
   it gives buttons a pale face, so glyphs inside a solid row need
   `background: transparent` set explicitly or they vanish white-on-white.
   Check both themes with a screenshot; the e2e suite runs in whichever the
-  page defaults to.
+  page defaults to. The same theme rule (`… #controls button`, specificity
+  1,4,1) silently disabled *every* button hover in dark mode, because
+  `#controls button:hover` is only 1,2,1; the dark hover is therefore written
+  once more with one attribute more than the theme uses. Any new interactive
+  state on a panel button needs the same treatment or it will only work in
+  light mode — measure with `page.hover` and `getComputedStyle`, not by eye.
 - **`#controls` must stay `flex-wrap: nowrap`.** The shared `.nd-imaging-controls` class
   sits on the same element and sets `flex-wrap: wrap` for its own row layout. With the
   column direction `styles.css` applies, anything taller than the panel wraps into a

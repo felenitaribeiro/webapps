@@ -1602,15 +1602,37 @@ function commitOverlay() {
 // -- the layer lists ------------------------------------------------------
 
 /** A compact icon button for the layer rows. */
+/**
+ * @param {string|Node} glyph a character, or an element such as `arrowIcon()`
+ */
 function iconButton(glyph, title, onClick) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'layer-icon';
   button.title = title;
   button.setAttribute('aria-label', title);
-  button.textContent = glyph;
+  if (typeof glyph === 'string') button.textContent = glyph;
+  else button.append(glyph);
   button.addEventListener('click', onClick);
   return button;
+}
+
+/**
+ * A triangle drawn as SVG rather than typed as ▲/▼. A text glyph is centred by
+ * its line box, and the ink of a triangle sits off-centre inside that box, so
+ * the flat edge and the apex were never symmetric about the button. A 10×8
+ * polygon in a grid cell is centred by construction.
+ * @param {'up'|'down'} direction
+ */
+function arrowIcon(direction) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 10 8');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.classList.add('layer-arrow');
+  const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  polygon.setAttribute('points', direction === 'up' ? '5,0 10,8 0,8' : '0,0 10,0 5,8');
+  svg.append(polygon);
+  return svg;
 }
 
 function makeRemoveButton(title, onClick) {
@@ -1619,7 +1641,9 @@ function makeRemoveButton(title, onClick) {
   button.className = 'layer-remove';
   button.title = title;
   button.setAttribute('aria-label', title);
-  button.textContent = '×';
+  // U+2715, from the same Dingbats block as the pencil, so the two match in
+  // weight; the multiplication sign renders tiny in Pontano Sans.
+  button.textContent = '\u2715';
   button.addEventListener('click', onClick);
   return button;
 }
@@ -1702,9 +1726,9 @@ function renderLayerLists() {
     name.addEventListener('click', () => selectRoi(roi.id));
 
 
-    const up = iconButton('\u25b2', `Move ${roi.name} up`, () => moveRoi(roi.id, -1));
+    const up = iconButton(arrowIcon('up'), `Move ${roi.name} up`, () => moveRoi(roi.id, -1));
     up.disabled = index === 0;
-    const down = iconButton('\u25bc', `Move ${roi.name} down`, () => moveRoi(roi.id, 1));
+    const down = iconButton(arrowIcon('down'), `Move ${roi.name} down`, () => moveRoi(roi.id, 1));
     down.disabled = index === rois.length - 1;
     const reopen = iconButton('\u270e', `Reopen ${roi.name} to adjust its border`,
       () => reopenRoi(roi.id));
