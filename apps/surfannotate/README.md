@@ -77,8 +77,13 @@ not separate an annulus, and is refused rather than silently filled.
 **Several surfaces and overlays at once.** Load as many surfaces as you like — by
 picker or by dropping them on the viewer — and switch between them from the list. One
 is shown at a time, because overlapping cortical surfaces occlude each other and a
-click over two of them could not be attributed to either. Overlays belong to the
-surface they were loaded onto, and each has its own visibility, colour map and range.
+click over two of them could not be attributed to either. An overlay belongs to the surface it
+was loaded onto. Tick *Apply overlays to every loaded surface with the same vertices*
+and it is instead applied to every loaded surface of the same subject — `white`,
+`pial`, `inflated` and `sphere` — as one overlay: one colour map, range and
+visibility, removed from all of them together, and a matching surface loaded later
+receives it too. Ticking the box after overlays are loaded shares those as well; if no
+other loaded surface has the same vertices, the status line says so.
 
 ROIs follow the *vertex indexing*, not the file. Surfaces sharing one — a subject's
 `white`, `pial`, `inflated` and `sphere` — share the ROIs, so you can draw on the sphere

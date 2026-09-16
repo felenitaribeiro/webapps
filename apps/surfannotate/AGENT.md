@@ -272,6 +272,17 @@ which is why the algorithm suite is fast and deterministic. Only `main.js` and
   punch scattered holes through the overlay. Anything that moves the display
   window must go through `commitOverlay`, not `commitLayer`, or the old clamp is
   what renders.
+- **A shared overlay is one overlay on several meshes, tied by `groupId`.** NiiVue
+  layers belong to a mesh, so `shareOverlay` builds a copy per matching surface
+  (`cloneOverlayTo`, from the source's `baseValues` and window), and a matching
+  surface loaded later receives the copies in `loadSurface`. Display changes are
+  made on one surface at a time and carried across at the *switch*
+  (`syncSharedOverlays` in `activateSurface`: colour map, window, opacity,
+  visibility, mask exemption, active overlay) — one place, rather than every
+  handler knowing about siblings. Removal removes the group. The mask was already
+  per topology (`state.masks` by `topologyKey`); overlays follow the same
+  idea only when `#overlayShare` is ticked — off by default, at the user's request,
+  so the one-surface behaviour is what a new session gets.
 - **Exempt overlays are restacked to the bottom, and that is what makes the mask
   useful.** `restackLayers` orders exempt overlays before masked overlays, then
   `meshAdapter.replaceLayerStack` puts those layers below the ROI layer. A

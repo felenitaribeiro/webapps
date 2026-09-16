@@ -1352,6 +1352,68 @@ test('overlays belong to their own surface', async ({ page }) => {
   expect(await page.evaluate(() => window.__surfannotate.overlayLayer)).toBe(null);
 });
 
+test('an overlay can be applied to every surface of the same subject, as one overlay', async ({ page }) => {
+  await loadFlat(page);
+  const count = 1681;
+  await expect(page.locator('#overlayShare')).not.toBeChecked();
+  await page.check('#overlayShare');
+  await page.locator('#overlayInput').setInputFiles(curvFile('lh.thickness', count, (v) => (v % 7) / 7));
+  await expect(page.locator('#statusText')).toContainText('Overlay lh.thickness loaded');
+  await expect(overlayRows(page)).toHaveCount(1);
+
+  // A matching surface loaded afterwards gets the overlay too.
+  await page.setInputFiles('#surfaceInput', join(FIXTURES, 'lh.flat.inflated.surf.gii'));
+  await expect(surfaceRows(page)).toHaveCount(2);
+  await expect(overlayRows(page)).toHaveCount(1);
+  await expect(overlayRows(page).first()).toContainText('lh.thickness');
+  const values = await page.evaluate(() => {
+    const [a, b] = window.__surfannotate.surfaces;
+    const x = a.overlays[0].baseValues, y = b.overlays[0].baseValues;
+    let same = x.length === y.length; for (let i = 0; same && i < x.length; i++) same = x[i] === y[i];
+    return { same, groupA: a.overlays[0].groupId, groupB: b.overlays[0].groupId };
+  });
+  expect(values.same).toBe(true);
+  expect(values.groupA).toBe(values.groupB);
+
+  // Settings changed here follow the overlay back to the other surface.
+  await page.selectOption('#overlayColormap', 'viridis');
+  await page.fill('#overlayMax', '0.5');
+  await page.press('#overlayMax', 'Enter');
+  await surfaceRows(page).first().locator('input[type=radio]').check();
+  await expect(overlayRows(page)).toHaveCount(1);
+  expect(await page.inputValue('#overlayColormap')).toBe('viridis');
+  expect(await page.inputValue('#overlayMax')).toBe('0.5');
+
+  // One overlay: removing it here removes it there.
+  await overlayRows(page).first().locator('.layer-remove').click();
+  await expect(page.locator('#statusText')).toContainText('from this and 1 matching surface');
+  await expect(overlayRows(page)).toHaveCount(0);
+  await surfaceRows(page).nth(1).locator('input[type=radio]').check();
+  await expect(overlayRows(page)).toHaveCount(0);
+
+  // Unticked — the default — an overlay stays with the surface it was loaded onto.
+  await page.uncheck('#overlayShare');
+  await page.locator('#overlayInput').setInputFiles(curvFile('lh.sulc', count, (v) => v / count));
+  await expect(page.locator('#statusText')).toContainText('Overlay lh.sulc loaded');
+  await expect(page.locator('#statusText')).not.toContainText('matching surface');
+  await surfaceRows(page).first().locator('input[type=radio]').check();
+  await expect(overlayRows(page)).toHaveCount(0);
+
+  // Ticking afterwards shares what is already loaded, whichever surface it is on.
+  await page.check('#overlayShare');
+  await expect(page.locator('#statusText')).toContainText('1 overlay now shared');
+  await expect(overlayRows(page)).toHaveCount(1);
+  await expect(overlayRows(page).first()).toContainText('lh.sulc');
+});
+
+test('ticking sharing with no matching surface loaded says so', async ({ page }) => {
+  await loadFlat(page);
+  await page.locator('#overlayInput').setInputFiles(curvFile('lh.sulc', 1681, (v) => v / 1681));
+  await expect(page.locator('#statusText')).toContainText('Overlay lh.sulc loaded');
+  await page.check('#overlayShare');
+  await expect(page.locator('#statusText')).toContainText('No other loaded surface has the same vertices');
+});
+
 test('a dropped overlay is recognised as an overlay, not a second surface', async ({ page }) => {
   await loadSurface(page);
   const bytes = readFileSync(join(FIXTURES, 'lh.curv')).toString('base64');

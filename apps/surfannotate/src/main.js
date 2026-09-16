@@ -128,6 +128,7 @@ const ui = {
   overlayOpacity: el('overlayOpacity'),
   overlayColormap: el('overlayColormap'),
   overlayFlip: el('overlayFlip'),
+  overlayShare: el('overlayShare'),
   overlayMin: el('overlayMin'),
   overlayMax: el('overlayMax'),
   overlayRangeReset: el('overlayRangeReset'),
@@ -813,6 +814,10 @@ async function init() {
   });
   // The flip changes the colours, not the window: the mirrored map spans the
   // same turn, so a window the user typed is left alone.
+  ui.overlayShare.addEventListener('change', () => {
+    if (ui.overlayShare.checked) shareAllOverlays();
+  });
+
   ui.overlayFlip.addEventListener('change', () => {
     applyOverlayDisplay();
     renderColorLegend();
@@ -1066,6 +1071,17 @@ async function loadSurface(file) {
     attachLabelLayer(mesh, entry.labelValues, currentLabelTable());
     const firstSurface = state.surfaces.length === 0;
     state.surfaces.push(entry);
+    // Shared overlays already on a matching surface come onto this one too.
+    if (ui.overlayShare.checked) {
+      const seen = new Set();
+      for (const other of matchingSurfaces(entry)) {
+        for (const overlay of other.overlays) {
+          if (overlay.groupId === undefined || seen.has(overlay.groupId)) continue;
+          seen.add(overlay.groupId);
+          cloneOverlayTo(entry, overlay);
+        }
+      }
+    }
     activateSurface(entry.id);
     if (firstSurface) {
       document.getElementById('overlayPanel').open = true;
@@ -1109,6 +1125,7 @@ function activateSurface(id, { announce = false } = {}) {
   // Before the active topology changes, or savedRois() would put it back on the
   // wrong surface's list.
   restoreEdited();
+  syncSharedOverlays(activeSurface(), entry);
 
   state.activeId = id;
   for (const surface of state.surfaces) {
@@ -1266,12 +1283,17 @@ async function addOverlay(file) {
     // Before the status line, so an overlay loaded while one of these maps is
     // already selected gets the same window, and the message reports it.
     const snapped = applyColormapWindow();
+    // After the window, so the copies start with the same one. Same subject
+    // means the same vertex indexing, and one value per vertex means the file
+    // says the same thing on lh.white as on lh.inflated.
+    const shared = ui.overlayShare.checked ? shareOverlay(entry, overlay) : 0;
+    const sharedNote = shared ? ` Applied to ${shared} matching surface${shared === 1 ? '' : 's'} too.` : '';
     const displayedRange = overlayLayerState(layer).range;
-    setStatus(snapped
+    setStatus((snapped
       ? `Overlay ${file.name} loaded. ${snapped.note}`
       : `Overlay ${file.name} loaded — display window ` +
-        `${displayedRange.low.toFixed(3)} to ${displayedRange.high.toFixed(3)}.`
-    );
+        `${displayedRange.low.toFixed(3)} to ${displayedRange.high.toFixed(3)}.`)
+      + sharedNote);
     repaint();
   } catch (error) {
     console.error('surfannotate: failed to load overlay', error);
@@ -1399,6 +1421,19 @@ function removeOverlay(id) {
   if (position < 0) return;
   const [overlay] = entry.overlays.splice(position, 1);
   restackLayers(entry);
+  // A shared overlay is one overlay on several surfaces; it goes from all of them.
+  let elsewhere = 0;
+  if (overlay.groupId !== undefined) {
+    for (const other of matchingSurfaces(entry)) {
+      const at = other.overlays.findIndex((candidate) => candidate.groupId === overlay.groupId);
+      if (at < 0) continue;
+      const [twin] = other.overlays.splice(at, 1);
+      if (other.activeOverlayId === twin.id) other.activeOverlayId = other.overlays[0]?.id ?? null;
+      restackLayers(other);
+      commitLayer(state.nv, other.mesh);
+      elsewhere++;
+    }
+  }
 
   if (entry.activeOverlayId === id) {
     const next = entry.overlays[position] || entry.overlays[position - 1];
@@ -1411,7 +1446,138 @@ function removeOverlay(id) {
   syncOverlayControls();
   commitLayer(state.nv, entry.mesh);
   repaint();
-  setStatus(`Removed overlay ${overlay.name}.`);
+  setStatus(`Removed overlay ${overlay.name}` +
+    (elsewhere ? ` from this and ${elsewhere} matching surface${elsewhere === 1 ? '' : 's'}.` : '.'));
+}
+
+/** The other loaded surfaces with this one's vertex indexing — the same subject. */
+function matchingSurfaces(entry) {
+  return state.surfaces.filter((other) => other !== entry && other.topologyKey === entry.topologyKey);
+}
+
+/**
+ * Put an overlay onto every matching surface as well, as one shared overlay.
+ *
+ * A NiiVue layer belongs to one mesh, so each surface gets its own layer built
+ * from the same values; the copies are tied together by `groupId`, which is
+ * what makes removing one remove all, and what lets a surface switch carry the
+ * colour map, window, opacity and visibility across (`syncSharedOverlays`).
+ *
+ * @returns {number} how many surfaces received a copy
+ */
+function shareOverlay(entry, overlay) {
+  overlay.groupId ??= state.nextId++;
+  let copies = 0;
+  for (const other of matchingSurfaces(entry)) {
+    if (other.overlays.some((candidate) => candidate.groupId === overlay.groupId)) continue;
+    // The same file loaded separately onto the other surface joins the group
+    // rather than being duplicated next to itself.
+    const twin = other.overlays.find((candidate) =>
+      candidate.groupId === undefined && candidate.name === overlay.name);
+    if (twin) twin.groupId = overlay.groupId;
+    else cloneOverlayTo(other, overlay);
+    copies++;
+  }
+  return copies;
+}
+
+/**
+ * Ticking the box after overlays are already loaded shares every one of them,
+ * on every surface, so the order of loading and ticking does not matter.
+ * Unticking only stops future sharing; what is already shared stays one
+ * overlay, which the hint says.
+ */
+function shareAllOverlays() {
+  const entry = activeSurface();
+  if (!entry) return;
+  if (!matchingSurfaces(entry).length) {
+    setStatus(`No other loaded surface has the same vertices as ${entry.name}, so there is ` +
+      'nothing to apply the overlays to yet. A surface of the same subject loaded later ' +
+      'will receive them.');
+    return;
+  }
+  let copies = 0;
+  let shared = 0;
+  for (const surface of state.surfaces) {
+    for (const overlay of [...surface.overlays]) {
+      const before = overlay.groupId;
+      copies += shareOverlay(surface, overlay);
+      if (before === undefined) shared++;
+    }
+  }
+  renderLayerLists();
+  repaint();
+  setStatus(shared
+    ? `${shared} overlay${shared === 1 ? '' : 's'} now shared across every surface with ` +
+      `the same vertices (${copies} cop${copies === 1 ? 'y' : 'ies'} made).`
+    : 'Every overlay is already shared.');
+}
+
+/** A copy of `source` on `target`, with the same values and display. */
+function cloneOverlayTo(target, source) {
+  const sourceState = overlayLayerState(source.layer);
+  const layer = attachValueLayer(state.nv, target.mesh, Float32Array.from(source.baseValues), {
+    name: source.name,
+    colormap: sourceState.colormap,
+    opacity: source.visible ? source.opacity : 0
+  });
+  setOverlayWindow(layer, sourceState.range.low, sourceState.range.high);
+  const copy = {
+    id: state.nextId++,
+    name: source.name,
+    layer,
+    visible: source.visible,
+    opacity: source.opacity,
+    autoRange: source.autoRange,
+    baseValues: layer.values,
+    baseTransparentBelowCalMin: source.baseTransparentBelowCalMin,
+    maskedBuffer: null,
+    ignoreMask: source.ignoreMask,
+    groupId: source.groupId
+  };
+  target.overlays.push(copy);
+  target.activeOverlayId ??= copy.id;
+  applyOverlayMask(target, copy);
+  restackLayers(target);
+  commitLayer(state.nv, target.mesh);
+  return copy;
+}
+
+/**
+ * On switching surface, bring each shared overlay's settings across from the
+ * surface just left: colour map, window, opacity, visibility, mask exemption,
+ * and which overlay the controls edit. Settings are changed on one surface at
+ * a time; syncing at the switch is what makes them feel like one overlay
+ * without every handler having to know about siblings.
+ */
+function syncSharedOverlays(from, to) {
+  if (!from || !to || from === to || from.topologyKey !== to.topologyKey) return;
+  let changed = false;
+  for (const overlay of to.overlays) {
+    if (overlay.groupId === undefined) continue;
+    const sibling = from.overlays.find((candidate) => candidate.groupId === overlay.groupId);
+    if (!sibling) continue;
+    const siblingState = overlayLayerState(sibling.layer);
+    overlay.visible = sibling.visible;
+    overlay.opacity = sibling.opacity;
+    overlay.ignoreMask = sibling.ignoreMask;
+    setOverlayDisplay(state.nv, to.mesh, overlay.layer, {
+      colormap: siblingState.colormap,
+      opacity: overlay.visible ? overlay.opacity : 0
+    });
+    setOverlayWindow(overlay.layer, siblingState.range.low, siblingState.range.high);
+    applyOverlayMask(to, overlay);
+    changed = true;
+  }
+  const active = from.overlays.find((candidate) => candidate.id === from.activeOverlayId);
+  if (active && active.groupId !== undefined) {
+    const twin = to.overlays.find((candidate) => candidate.groupId === active.groupId);
+    if (twin) to.activeOverlayId = twin.id;
+  }
+  if (changed) {
+    restackLayers(to);
+    commitLayer(state.nv, to.mesh);
+  }
 }
 
 /** Enable, disable and fill the overlay controls for whatever is selected. */
