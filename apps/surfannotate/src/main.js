@@ -46,7 +46,7 @@ import {
 import { writePointsJson, hashTriangles } from './io/points.js';
 import { isCurvFormat, readCurvValues } from './io/freesurferCurv.js';
 import {
-  exportStem as buildExportStem, hasAnatomicalCoordinates, surfaceKind, FLAT
+  exportStem as buildExportStem, hasAnatomicalCoordinates, surfaceKind, FLAT, SPHERE, INFLATED
 } from './io/naming.js';
 import { classifyFile, SNIFF_BYTES, SURFACE, OVERLAY, MASK, UNKNOWN } from './io/classify.js';
 
@@ -433,6 +433,9 @@ function saveRoi() {
     name,
     topologyKey: entry.topologyKey,
     clicks: Array.from(session.clicks),
+    // The border as traced on this surface. Kept alongside the clicks so the
+    // ROI is the same vertices on every surface sharing the indexing.
+    border: Array.from(session.chain),
     closure: session.closure,
     regionIndex: session.regionIndex,
     includeBoundary: ui.includeBoundary.checked,
@@ -1859,27 +1862,33 @@ function showCoordinateSource() {
   const donor = state.surfaces.find((other) => other.anatomical
     && other.topologyKey === entry.topologyKey);
 
+  const what = flattened ? 'a flat patch' : kind === SPHERE ? 'a sphere'
+    : kind === INFLATED ? 'an inflated surface' : `${kind}`;
+  const where = flattened ? 'the patch' : kind === SPHERE ? 'the sphere' : 'the inflated shape';
   let advice;
   if (donor) {
-    advice = `Switch to ${donor.name} before exporting — it shares this vertex `
-      + 'indexing, so the ROIs come with you.';
+    advice = `Switch to ${donor.name} before exporting if you need brain coordinates — `
+      + 'the ROIs come with you, because the vertices are the same. Vertex indices are '
+      + 'correct either way, which is all freeview and mris_anatomical_stats use.';
   } else if (flattened) {
     // A patch is a cut of a surface, renumbered, so it has fewer vertices than
     // the native surface. Sending someone to lh.pial here would hide their work
     // rather than fix anything — the ROIs belong to this indexing.
-    advice = 'A flat surface also has a different number of vertices from the '
-      + 'native surface it was cut from, so its vertex indices — and the ROIs '
-      + 'drawn on it — belong to this patch alone.';
+    advice = 'A flat patch also has a different number of vertices from the native '
+      + 'surface it was cut from, so its vertex indices — and the ROIs drawn on it — '
+      + 'belong to this patch alone. Export from here and use the file with the patch.';
   } else {
-    advice = 'The vertex indices are correct, and are all freeview and '
-      + 'mris_anatomical_stats read. Load the matching lh.white or lh.pial and '
-      + 'switch to it if you need the coordinates too — it shares this vertex '
-      + 'indexing, so the ROIs come with you.';
+    advice = 'Vertex indices are correct, which is all freeview, mris_anatomical_stats '
+      + 'and mri_label2label (by index) use, so exporting from here is fine for them. '
+      + 'Tools that read the coordinates — mri_label2vol, mri_label2label --regmethod '
+      + "coords — need a folded surface: load this subject's lh.white or lh.pial, "
+      + 'switch to it and export from there. The ROIs come with you, because the '
+      + 'vertices are the same.';
   }
 
   ui.exportHint.textContent =
-    `${entry.name} is ${flattened ? 'flat' : kind}, so its x/y/z are not anatomical. `
-    + advice;
+    `${entry.name} is ${what}, so its x/y/z are not anatomical: they are positions on `
+    + `${where}, not in the brain. ` + advice;
   ui.exportHint.classList.add('warn');
 }
 
@@ -2520,6 +2529,7 @@ async function importRois(file) {
       name: roi.name,
       topologyKey: entry.topologyKey,
       clicks: Array.from(roi.clicks),
+      border: Array.isArray(roi.border) ? Array.from(roi.border) : undefined,
       closure: roi.closure,
       regionIndex: roi.regionIndex ?? 0,
       includeBoundary: Boolean(roi.includeBoundary),
@@ -2648,6 +2658,7 @@ window.__surfannotateIo = {
 // bundle otherwise, and a shipping app should not export its internals wholesale.
 window.__surfannotateUi = {
   repaint, runFill, setMode, activateSurface, activeSurface, activeOverlay, savedRois,
+  recomputeParcellation,
   // Synchronous, unlike the scheduled path: a test that had to race the
   // animation frame would be flaky in exactly the way the drag-and-drop tests
   // already warn about.

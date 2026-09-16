@@ -81,11 +81,12 @@ click over two of them could not be attributed to either. Overlays belong to the
 surface they were loaded onto, and each has its own visibility, colour map and range.
 
 ROIs follow the *vertex indexing*, not the file. Surfaces sharing one — a subject's
-`white`, `pial`, `inflated` and `sphere` — share the border points, so you can place
-them on the inflated surface and see them on the folded one. The traced border and the
-fill are rebuilt on the new surface rather than carried across, because the shortest
-path between two vertices genuinely runs differently over different geometry. Surfaces
-with unrelated topology keep separate, independent ROIs.
+`white`, `pial`, `inflated` and `sphere` — share the ROIs, so you can draw on the sphere
+or the inflated surface and see exactly the same vertices on the folded one. A saved ROI
+carries its border as a vertex path, and a fill is purely topological, so the region is
+identical on every such surface; only when you *reopen* an ROI is the border re-traced
+between your clicks on the surface shown, because a shortest path genuinely runs
+differently over different geometry. Surfaces with unrelated topology keep separate, independent ROIs.
 
 Dropped files are identified by their magic number and name rather than by drop order,
 so a surface and an overlay can be dropped in any sequence. A FreeSurfer `.label` is

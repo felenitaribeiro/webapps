@@ -1770,6 +1770,42 @@ test('ROIs follow the topology, like the ROI being drawn', async ({ page }) => {
   await expect(roiRows(page)).toHaveCount(1, 'and they come back on the original');
 });
 
+test('an ROI is the same vertices on another surface sharing the indexing', async ({ page }) => {
+  // lh.flat.inflated.surf.gii has the flat patch's vertices and triangles under
+  // a warped geometry — lh.inflated to its lh.white. Shortest paths run
+  // differently there, so an ROI re-traced from its clicks would enclose a
+  // different region; the saved border is a vertex path and encloses the same.
+  await loadFlat(page);
+  await saveStrip(page, 2, 'V1');
+  const before = await areaSizes(page);
+  expect(before[0].n).toBeGreaterThan(0);
+
+  await page.setInputFiles('#surfaceInput', join(FIXTURES, 'lh.flat.inflated.surf.gii'));
+  await expect(surfaceRows(page)).toHaveCount(2);
+  await expect(roiRows(page)).toHaveCount(1);
+  expect(await areaSizes(page)).toEqual(before);
+  await expect(roiRows(page).first()).not.toHaveClass(/unresolved/);
+
+  // Dropping the saved border and resolving again re-traces between the
+  // clicks on the warped geometry. On this synthetic patch the straight strip
+  // happens to re-trace to the same row, so this only checks that the
+  // fallback path resolves; the unit test in parcellation.test.js is what
+  // proves a border is honoured over a re-trace when the two differ.
+  const retraced = await page.evaluate(() => {
+    const roi = window.__surfannotateUi.savedRois()[0];
+    const saved = roi.border;
+    roi.border = undefined;
+    window.__surfannotateUi.recomputeParcellation();
+    const n = roi.mask ? roi.mask.reduce((t, v) => t + v, 0) : null;
+    const error = roi.error;
+    roi.border = saved;
+    window.__surfannotateUi.recomputeParcellation();
+    return { retraced: n, error };
+  });
+  expect(retraced.error).toBe(null);
+  expect(await areaSizes(page)).toEqual(before);
+});
+
 test('a loop ROI is reopened onto the side it was filled on', async ({ page }) => {
   await loadFlat(page);
   await page.evaluate(() => {

@@ -34,6 +34,19 @@ test('a session round-trips every definition field and nothing derived', () => {
   assert.ok(!text.includes('"id"'), 'ids are assigned on load, not carried');
 });
 
+test('the traced border travels with the definition, and is validated', () => {
+  const rois = [{ ...ROIS[0], border: [42, 43, 44, 80, 120, 42] }];
+  const session = readSession(writeSession({ rois, mesh: MESH, topologyKey: KEY }));
+  assert.deepEqual(session.rois[0].border, [42, 43, 44, 80, 120, 42]);
+  // An old file without one still reads; the ROI is re-traced from its clicks.
+  const bare = readSession(writeSession({ rois: [ROIS[0]], mesh: MESH, topologyKey: KEY }));
+  assert.equal(bare.rois[0].border, undefined);
+  assert.throws(() => readSession(JSON.stringify({ format: SESSION_FORMAT, rois: [{ name: 'V1', clicks: [1], closure: 'loop', border: [1, 'x'] }] })), /invalid border/);
+  // Border vertices count against the surface too.
+  const stray = readSession(writeSession({ rois: [{ ...ROIS[0], border: [1, 9999] }], mesh: MESH, topologyKey: KEY }));
+  assert.match(sessionFits(stray, { vertexCount: 1681, topologyKey: KEY }).reason, /vertices this surface lacks/);
+});
+
 test('reading refuses what is not a session, naming the problem', () => {
   assert.throws(() => readSession('not json'), /not a JSON file/);
   assert.throws(() => readSession('{"format":"surf-roi-points/1"}'), /not a SurfAnnotate session/);

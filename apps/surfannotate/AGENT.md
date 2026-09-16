@@ -80,9 +80,11 @@ which is why the algorithm suite is fast and deterministic. Only `main.js` and
   vertex picking.
 - **ROI sessions are keyed by topology (`vertexCount:triangleHash`), not by file.** One
   subject's white/pial/inflated share a session so border points survive a switch;
-  `RoiSession.rebind` moves it and deliberately discards the traced chain and fill,
-  which are geometry-dependent. Deleting a surface only drops the session once the last
-  surface with that topology is gone.
+  `RoiSession.rebind` moves it and deliberately discards the *working* region's traced
+  chain and fill, which are geometry-dependent — saved ROIs keep theirs, see the
+  border note below. Deleting a surface only drops the session once the last surface
+  with that topology is gone. `test/fixtures/lh.flat.inflated.surf.gii` is the flat
+  patch's topology under a warped geometry, for testing exactly this.
 - **The edge-closure button is named after the edge that actually exists.**
   `EDGE_LABELS` in `main.js` picks between "Close on surface edge", "Close on ROI
   edge" and "Close on edge" from `state.edgeSources`, which `bindSession` sets from
@@ -118,9 +120,19 @@ which is why the algorithm suite is fast and deterministic. Only `main.js` and
   from the border by hop count, which is the last one a neighbour would take. The border is recomputed
   from the clicks, not restored from the saved chain, for the same reason the clicks are
   authoritative everywhere else.
-- **The clicked vertices are the only authoritative ROI state.** The traced chain and
-  the filled mask are always derived and are discarded whenever the clicks change.
-  freeview does the opposite and that is what makes its undo impossible.
+- **The clicked vertices are the authoritative ROI state for *editing*; the saved
+  border is authoritative for *resolving*.** `saveRoi` stores both: `clicks`, and
+  `border` — the chain as traced on the surface it was drawn on. `resolveRoi` adopts
+  the border verbatim (`RoiSession.adoptChain`) and only re-traces from the clicks
+  when the border is no longer walkable, i.e. an ROI above has cut through it. This
+  is what makes an ROI the same vertices on lh.sphere.reg, lh.inflated and lh.white:
+  the fill is topological, so the same barrier and anchor give the same region on all
+  three, whereas a shortest path between two clicks runs differently on each — on a
+  folded surface a border traced on the sphere leaked and the ROI resolved as
+  `FILL_ESCAPED`, which is the bug this fixed. Reopening still re-traces on the
+  surface shown, so the clicks remain the thing you edit. The mask is always derived
+  and discarded whenever clicks or border change. freeview does the opposite and
+  that is what makes its undo impossible.
 - **Flood fill must only ever walk the 1-ring graph.** Augmenting it (unfolded 2-ring
   edges, k-ring neighbourhoods) adds edges that cross faces, so the fill hops the
   barrier and swallows the hemisphere. Validate the chain before filling.
@@ -176,6 +188,10 @@ which is why the algorithm suite is fast and deterministic. Only `main.js` and
   in the file is a vertex index. Imported ROIs keep the file's `colorIndex` so
   a parcellation looks as it did; `nextColorIndex` already skips colours in
   use, so ROIs drawn afterwards differ.
+- **Importing masks from other tools and recovering border points from them is
+  planned, not done.** The agreed design, the decisions already taken with the
+  user, the failure cases and the test plan are in `docs/roi-import-plan.md`.
+  Read it before starting that work; do not re-derive the design.
 - **Exports are named `<hemisphere>.<roi>`, never after the source surface.** See
   `io/naming.js`. An ROI drawn on `lh.sphere.reg` is valid on any surface sharing that
   vertex indexing, so `lh.sphere.reg.surf.V1.label` would misrepresent it.

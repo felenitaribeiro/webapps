@@ -60,6 +60,10 @@ export function writeSession({ rois, points = [], mesh, topologyKey, created = n
     rois: rois.map((roi) => ({
       name: roi.name,
       clicks: Array.from(roi.clicks),
+      // The traced border: what makes the ROI the same vertices on any surface
+      // sharing the indexing. Absent for an ROI saved before it was recorded;
+      // such an ROI is re-traced from its clicks, as it always was.
+      ...(roi.border && roi.border.length ? { border: Array.from(roi.border) } : {}),
       closure: roi.closure,
       ...(roi.regionIndex !== undefined && roi.regionIndex !== null
         ? { regionIndex: roi.regionIndex } : {}),
@@ -102,6 +106,10 @@ export function readSession(text) {
     if (roi.closure !== 'loop' && roi.closure !== 'edge') {
       throw new Error(`${label} has an unknown closure "${roi.closure}"`);
     }
+    if (roi.border !== undefined
+      && (!Array.isArray(roi.border) || !roi.border.every((v) => Number.isInteger(v) && v >= 0))) {
+      throw new Error(`${label} has an invalid border`);
+    }
   });
   if (document.points !== undefined && !Array.isArray(document.points)) {
     throw new Error('session landmarks are not a list');
@@ -136,7 +144,7 @@ export function sessionFits(session, surface) {
         `vertices; this one has ${surface.vertexCount.toLocaleString()}`
     };
   }
-  const outOfRange = session.rois.flatMap((roi) => roi.clicks)
+  const outOfRange = session.rois.flatMap((roi) => roi.clicks.concat(roi.border || []))
     .concat(session.points.map((point) => point.vertex))
     .some((v) => v >= surface.vertexCount);
   if (outOfRange) return { ok: false, reason: 'the session refers to vertices this surface lacks' };
