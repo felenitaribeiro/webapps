@@ -3,6 +3,7 @@ import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { basename, join, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
+import { renderInstallationNotes } from './release-notes.mjs';
 import { fileHash } from '../../packages/desktop/src/bundle.js';
 import { loadAppsRegistry } from '../lib/apps-registry.mjs';
 import { loadStandalone } from '../lib/standalone.mjs';
@@ -66,7 +67,7 @@ const metadataPath = join(directory, 'standalone-catalog.json');
 await writeFile(metadataPath, `${JSON.stringify(catalog, null, 2)}\n`);
 uploads.add(metadataPath);
 const notesPath = join(directory, 'release-notes.md');
-await writeFile(notesPath, `# Neurodesk Webapps ${version}\n\nAll ${registry.apps.length} applications are available in two editions. **Without models** downloads and caches models when needed. **Models included** bundles all model and runtime assets for offline use.\n\nDownload every archive part for your platform and its installation instructions. macOS targets Apple silicon; Linux and Windows target x86-64. The Apptainer SIF supports HPC GUI sessions and JSON batch jobs. WebGPU methods require compatible GPU hardware.\n\nEvery installed application was launched with a fresh profile on macOS, Linux and Windows. CI also tested offline computations and exports, and a Docker batch job with networking disabled. Model accuracy and hardware-specific GPU coverage are documented in the repository test reports.\n\nSource: ${revision}\n`);
+await writeFile(notesPath, `# Neurodesk Webapps ${version}\n\nAll ${registry.apps.length} applications are available in two editions. **Without models** downloads and caches models when needed. **Models included** bundles all model and runtime assets for offline use.\n\nDownload every archive part for your platform and its installation instructions. macOS targets Apple silicon; Linux and Windows target x86-64. The Apptainer SIF supports HPC GUI sessions and JSON batch jobs. WebGPU methods require compatible GPU hardware.\n\nEvery installed application was launched with a fresh profile on macOS, Linux and Windows. CI also tested offline computations and exports, and a Docker batch job with networking disabled. Model accuracy and hardware-specific GPU coverage are documented in the repository test reports.\n\nSource: ${revision}\n\n${renderInstallationNotes(downloads)}`);
 if (process.argv.includes('--prepare-only')) {
   console.log(metadataPath);
 } else {
