@@ -19,6 +19,50 @@ export interface ImagingWorkspaceConfig {
 export function mountImagingWorkspace(config: ImagingWorkspaceConfig): HTMLElement;
 
 // ---- Workflow vocabulary builders (ui) ----
+export interface ExampleFile {
+  role: string;
+  name: string;
+  url: string;
+  sha256?: string;
+}
+export interface AppExample {
+  id: string;
+  label: string;
+  description: string;
+  expectedResult: string;
+  files: ExampleFile[];
+}
+export interface ExampleLoadContext {
+  signal: AbortSignal;
+  fetchFiles(): Promise<File[]>;
+  assertCurrent(): void;
+}
+export function renderExampleSelector<T extends AppExample>(config: {
+  examples: T[];
+  onLoad(example: T, context: ExampleLoadContext): Promise<void>;
+  onStatus?(message: string, error: boolean): void;
+}, doc?: Document): {
+  root: HTMLDivElement;
+  select: HTMLSelectElement;
+  cancel(): void;
+  setDisabled(value: boolean): void;
+  destroy(): void;
+};
+export function renderSidebarSection(config?: {
+  id?: string;
+  title?: string;
+  collapsed?: boolean;
+  disabled?: boolean;
+  content?: Node | (Node | string | null | undefined | false)[] | string;
+  badge?: string | number;
+  badgeClassName?: string;
+}, doc?: Document): {
+  root: HTMLDetailsElement;
+  title: HTMLElement;
+  content: HTMLDivElement;
+  setDisabled(disabled: boolean): void;
+  setBadge(text: string, className?: string): void;
+};
 export interface RenderedFileField {
   root: HTMLLabelElement;
   input: HTMLInputElement;
