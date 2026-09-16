@@ -1,5 +1,17 @@
 # @neurodesk/desktop
 
+## 0.6.20260915
+
+### Patch Changes
+
+- Prevent Niimath input loading from overwriting processed results during offline batch jobs.
+
+## 0.5.20260915
+
+### Patch Changes
+
+- Include T1 and T2 head MRI examples for Brain extraction.
+
 ## 0.4.20260915
 
 ### Minor Changes
