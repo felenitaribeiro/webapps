@@ -77,6 +77,10 @@ export function renderLandingPage(registry) {
       <a class="brand" href="https://neurodesk.org/" aria-label="Neurodesk home"><img src="./neurodesk-logo.svg" alt="Neurodesk"></a>
       <nav class="site-nav" aria-label="Neurodesk navigation">
         <a href="https://github.com/neurodesk/webapps">GitHub</a>
+        <a class="theme-toggle standalone-link" href="https://github.com/neurodesk/webapps/releases?q=Neurodesk+Webapps&amp;expanded=true" title="Download the latest full desktop suite for macOS, Windows or Linux">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg>
+          <span>Standalone</span>
+        </a>
         <button class="theme-toggle" type="button" data-neurodesk-theme-toggle aria-label="Use light theme" title="Use light theme">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
           <span data-neurodesk-theme-label>Light</span>
