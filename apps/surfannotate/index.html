@@ -350,6 +350,16 @@
             <button type="button" id="saveRoi" disabled>Save filled region</button>
           </div>
           <ul class="layer-list" id="roiList" aria-label="Completed ROIs"></ul>
+          <!-- Border points, not masks: what comes back is editable. -->
+          <label class="file-field mask-field">
+            <input type="file" data-neurodesk-input="surface" id="roiImport" accept=".json,.gii" disabled />
+            <span class="mask-browse">Load ROIs from a file</span>
+          </label>
+          <p class="hint">
+            Restores ROIs saved by this app — a <code>.surfannotate.json</code> session, or
+            a <code>.label.gii</code> it exported — with their border points, so they can be
+            edited or added to. They are appended below any ROIs already listed.
+          </p>
           <details class="workflow-help">
             <summary>How ROI partitioning works</summary>
             <p>
@@ -370,10 +380,10 @@
             <span class="panel-step" aria-hidden="true">05</span>
             <div>
               <h2>Export</h2>
-              <p>Download the active region, or every saved ROI, in your preferred format.</p>
+              <p>Download a saved ROI, or every saved ROI, in your preferred format.</p>
             </div>
           </summary>
-          <p class="hint" id="exportNameHint">Used in the file name and inside the file.</p>
+          <p class="hint" id="exportNameHint">Exports write saved ROIs: save the filled region, then export it from here.</p>
           <div class="button-row">
             <button type="button" id="exportLabel" disabled>FreeSurfer .label</button>
             <button type="button" id="exportGifti" disabled>GIfTI .label.gii</button>
@@ -398,6 +408,15 @@
           <p class="hint" id="exportAllHint">
             One label per vertex; each ROI keeps its name and colour. Opens in freeview,
             Workbench, nibabel and NiiVue.
+          </p>
+          <div class="button-row">
+            <button type="button" id="exportSession" disabled
+                    title="Border points and landmarks — the editable form">Session .json</button>
+          </div>
+          <p class="hint">
+            The editable form: every ROI's border points and the landmarks. Load it back
+            from the Saved ROIs panel to continue. The <code>.label.gii</code> files above
+            carry the same inside them.
           </p>
         </details>
       </div>

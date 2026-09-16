@@ -114,10 +114,23 @@ silently dropped.
 
 The pencil reopens an ROI to adjust its border. It keeps its place in the list, so the
 ROIs above it constrain the drawing exactly as when it was first drawn, and the ROIs
-below it are re-derived on save. Clicking a name makes the export buttons write that
-ROI instead of the region being drawn: the row turns solid green and the export panel
-names it. Clicking again goes back to the region being drawn. Each row also carries a
-swatch of the ROI's fill colour.
+below it are re-derived on save. **Exports write saved ROIs only.** Saving selects the
+ROI just saved, so the flow is draw, save, export; clicking a name selects another, the
+row turns solid green and the export panel names it. The region being drawn is never
+written directly. Each row also carries a swatch of the ROI's fill colour.
+
+**Continuing earlier work.** *Load ROIs from a file* in the Saved ROIs panel restores
+ROIs from a session file or from a `.label.gii` this app exported, with their border
+points intact, so they can be reopened, reordered and built on. Loaded ROIs keep the
+colours they were saved with; an ROI already on the list that shares one moves to a free
+colour. The palette has sixteen colours, chosen to stay apart from each other and from
+the red fill and yellow border of a region still being drawn. While an ROI is reopened
+for editing, every export waits until it is saved or the edit discarded: the whole-list
+files would lack it, and the single-ROI files would write it half-edited. The file must
+belong to the loaded surface — every number in it is a vertex index — and a different
+vertex count or triangulation is refused with a message rather than mapped. A label file
+from another tool has no border points to restore; recovering them from the mask is the
+next step.
 
 **Vertex selection.** Point-and-click landmarks, exported as a vertex list.
 
@@ -137,6 +150,7 @@ document, so there is still one bundle and one path in the composite site.
 | Points JSON | Landmarks plus a mesh fingerprint, so a point set cannot be loaded onto the wrong surface. |
 | FreeSurfer `.annot` | **Every saved ROI in one file**, in list order, with names and colours. Opens in freeview; `mri_annotation2label` splits it back into `.label`s. |
 | GIfTI `.label.gii` (all ROIs) | The same parcellation as one integer per vertex with a label table. Opens in Workbench, nibabel, NiiVue. |
+| Session `.surfannotate.json` | **The editable form**: every ROI's border points, closure and anchor, plus the landmarks. Load it back to continue editing or add ROIs. The `.label.gii` exports carry the same block in their metadata, so they reopen here too. |
 
 Coordinates are written in tkreg (surface) RAS, as the `.label` header declares.
 NiiVue adds the volume centre on load so meshes align with volumes, and the export

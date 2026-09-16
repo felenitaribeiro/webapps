@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { readFile, writeFile } from 'node:fs/promises';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(here, '..', 'test', 'fixtures');
@@ -935,6 +937,10 @@ test('the ROI name reaches the file name and the file contents', async ({ page }
     session.closePath();
     window.__surfannotateUi.runFill(-1);
   });
+  // Exports write saved ROIs only, and saving selects the ROI just saved.
+  await expect(page.locator('#exportLabel')).toBeDisabled();
+  await page.click('#saveRoi');
+  await expect(page.locator('#exportLabel')).toBeEnabled();
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),
@@ -1581,6 +1587,91 @@ test('removing an ROI gives its vertices back to the surface', async ({ page }) 
   expect(await page.evaluate(() => window.__surfannotate.excluded)).toBe(null);
 });
 
+test('a session file restores editable ROIs, and so does the .label.gii it rides in', async ({ page }) => {
+  await loadFlat(page);
+  await expect(page.locator('#roiImport')).toBeEnabled();
+  await expect(page.locator('#exportSession')).toBeDisabled();
+  await saveStrip(page, 2, 'V1');
+  await saveStrip(page, 5, 'V2');
+  await page.evaluate(() => { window.__surfannotate.session.togglePoint(700, 'MT'); });
+  const before = await areaSizes(page);
+  await page.fill('#parcellationName', 'retinotopy');
+
+  const save = async (button) => {
+    const download = page.waitForEvent('download');
+    await page.locator(button).click();
+    const file = await download;
+    const path = join(tmpdir(), `surfannotate-e2e-${Date.now()}-${file.suggestedFilename()}`);
+    await file.saveAs(path);
+    return { path, name: file.suggestedFilename(), text: await readFile(path, 'utf8') };
+  };
+  const clearList = async () => {
+    while (await roiRows(page).count()) await roiRows(page).first().locator('.layer-remove').click();
+    await expect(roiRows(page)).toHaveCount(0);
+  };
+
+  // The session: definitions in list order, no masks.
+  const session = await save('#exportSession');
+  expect(session.name).toBe('lh.retinotopy.surfannotate.json');
+  const parsed = JSON.parse(session.text);
+  expect(parsed.rois.map((roi) => roi.name)).toEqual(['V1', 'V2']);
+  expect(parsed.rois[0].clicks).toHaveLength(2);
+  expect(parsed.rois[0].closure).toBe('edge');
+  expect(parsed.points).toEqual([{ vertex: 700, name: 'MT' }]);
+  expect(session.text).not.toContain('"mask"');
+
+  // Loading it back gives the same regions, and the reopen button works on them.
+  await clearList();
+  await page.setInputFiles('#roiImport', session.path);
+  await expect(page.locator('#statusText')).toContainText('Loaded 2 ROIs and 0 landmarks');
+  await expect(roiRows(page)).toHaveCount(2);
+  expect(await areaSizes(page)).toEqual(before);
+  await roiRows(page).first().locator('.layer-edit').click();
+  await expect(page.locator('#statusText')).toContainText('Reopened V1');
+  expect(await page.evaluate(() => window.__surfannotate.session.clicks.length)).toBe(2);
+  await page.locator('#saveRoi').click();
+  await expect(roiRows(page)).toHaveCount(2);
+
+  // The GIfTI export carries the same block, so it loads too.
+  const gifti = await save('#exportAllGifti');
+  expect(gifti.text).toContain('SurfAnnotateSession');
+  await clearList();
+  await page.setInputFiles('#roiImport', gifti.path);
+  await expect(page.locator('#statusText')).toContainText('Loaded 2 ROIs');
+  expect(await areaSizes(page)).toEqual(before);
+
+  // A GIfTI from elsewhere has no border points to restore.
+  const plain = join(tmpdir(), `surfannotate-e2e-${Date.now()}-plain.label.gii`);
+  await writeFile(plain, gifti.text.replace(/SurfAnnotateSession/g, 'Other'));
+  await page.setInputFiles('#roiImport', plain);
+  await expect(page.locator('#statusText')).toContainText('carries no SurfAnnotate border points');
+  await expect(roiRows(page)).toHaveCount(2);
+
+  // Loaded on top of an existing list: the file's colours win and the ROIs
+  // already there move out of the way, while a free colour exists.
+  const colours = () => page.evaluate(() => window.__surfannotateUi.savedRois().map((roi) => roi.colorIndex));
+  expect(await colours()).toEqual([0, 1]);
+  await page.setInputFiles('#roiImport', session.path);
+  await expect(page.locator('#statusText')).toContainText('Loaded 2 ROIs');
+  await expect(roiRows(page)).toHaveCount(4);
+  const after = await colours();
+  expect(after.slice(2)).toEqual([0, 1], 'imported ROIs keep the colours in the file');
+  expect(after.slice(0, 2).every((c) => c !== 0 && c !== 1)).toBe(true);
+  expect(new Set(after).size).toBe(4);
+
+  // Whole-list exports wait while an ROI is reopened, rather than writing a
+  // file that lacks it.
+  await roiRows(page).first().locator('.layer-edit').click();
+  await expect(page.locator('#statusText')).toContainText('Reopened');
+  for (const id of ['exportSession', 'exportAnnot', 'exportAllGifti', 'exportLabel', 'exportGifti']) {
+    await expect(page.locator(`#${id}`), `#${id} while editing`).toBeDisabled();
+  }
+  await expect(page.locator('#exportNameHint')).toContainText('reopened for editing');
+  await page.locator('#saveRoi').click();
+  await expect(page.locator('#exportSession')).toBeEnabled();
+  await expect(page.locator('#exportNameHint')).not.toContainText('reopened');
+});
+
 test('every saved ROI can be written to one file, as .annot and as .label.gii', async ({ page }) => {
   await loadFlat(page);
   await expect(page.locator('#exportAnnot')).toBeDisabled();
@@ -1633,18 +1724,25 @@ test('every saved ROI can be written to one file, as .annot and as .label.gii', 
 
 test('a selected ROI is what the export buttons write', async ({ page }) => {
   await loadFlat(page);
+  await expect(page.locator('#exportNameHint')).toContainText('save the filled region');
   await saveStrip(page, 2, 'V1');
   const row = roiRows(page).first();
-  await expect(row).not.toHaveClass(/export-target/);
-  await row.locator('.layer-name').click();
 
-  // The selection has to be unmistakable, because it changes what a download
-  // contains: a solid row style, and the export hint names the ROI. The row
-  // is 320px wide with four buttons in it, so it is colour that carries this,
-  // not a label — a text tag left one letter of the name visible.
+  // Saving selects the ROI, and the selection has to be unmistakable, because
+  // it is what a download contains: a solid row style, and the export hint
+  // names the ROI. The row is 320px wide with four buttons in it, so it is
+  // colour that carries this, not a label — a text tag left one letter of the
+  // name visible.
   await expect(row).toHaveClass(/export-target/);
   await expect(row.locator('.layer-name')).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#exportNameHint')).toContainText('Exporting the saved ROI V1');
+
+  // Deselecting leaves nothing to export; selecting again restores it.
+  await row.locator('.layer-name').click();
+  await expect(row).not.toHaveClass(/export-target/);
+  await expect(page.locator('#exportLabel')).toBeDisabled();
+  await expect(page.locator('#exportNameHint')).toContainText('Select a saved ROI');
+  await row.locator('.layer-name').click();
 
   await expect(page.locator('#exportLabel')).toBeEnabled();
   const download = page.waitForEvent('download');
@@ -1657,11 +1755,6 @@ test('a selected ROI is what the export buttons write', async ({ page }) => {
   for await (const chunk of stream) chunks.push(chunk);
   const lines = Buffer.concat(chunks).toString('utf8').trimEnd().split('\n');
   expect(Number(lines[1])).toBe(82, 'the saved region, not an empty one');
-
-  // Clicking the name again hands the export back to the region being drawn.
-  await row.locator('.layer-name').click();
-  await expect(row).not.toHaveClass(/export-target/);
-  await expect(page.locator('#exportNameHint')).not.toContainText('Exporting the saved ROI');
 });
 
 test('ROIs follow the topology, like the ROI being drawn', async ({ page }) => {
@@ -1750,7 +1843,6 @@ test('an exported .label can be dropped back in as an overlay', async ({ page })
   // to its curvature parser, which cannot read ASCII, so the drop did nothing.
   await loadFlat(page);
   await saveStrip(page, 2, 'V1');
-  await roiRows(page).first().locator('.layer-name').click();
 
   const download = page.waitForEvent('download');
   await page.locator('#exportLabel').click();
@@ -1933,10 +2025,11 @@ test('the Cite button opens the citations, from the app and from the start page'
 
 // -- regressions found by adversarial testing ------------------------------
 
-test('saving an ROI does not silently retarget the export', async ({ page }) => {
-  // Saving used to select the ROI, and the export buttons prefer the selection
-  // while the filename comes from the name box — so the next export wrote the
-  // saved ROI's vertices under the new ROI's name.
+test('exports write the selected saved ROI under its own name, never the region on screen', async ({ page }) => {
+  // Saving selects the ROI. The name field then goes on naming the *next* ROI,
+  // so the export name must come from the selected ROI itself — otherwise the
+  // saved vertices would be written under the new name. And the region being
+  // drawn is not exportable at all until it is saved.
   await loadFlat(page);
   await saveStrip(page, 2, 'V1');
 
@@ -1950,20 +2043,31 @@ test('saving an ROI does not silently retarget the export', async ({ page }) => 
     window.__surfannotateUi.repaint();
   });
   await page.fill('#roiName', 'V2');
+  await page.dispatchEvent('#roiName', 'input');
 
   const onScreen = await page.evaluate(() =>
     window.__surfannotate.session.filled.reduce((n, v) => n + v, 0));
   expect(onScreen).not.toBe(82);
 
-  const download = page.waitForEvent('download');
-  await page.locator('#exportLabel').click();
-  const file = await download;
-  expect(file.suggestedFilename()).toBe('lh.V2.label');
-  const stream = await file.createReadStream();
-  const chunks = [];
-  for await (const chunk of stream) chunks.push(chunk);
-  const lines = Buffer.concat(chunks).toString('utf8').trimEnd().split('\n');
-  expect(Number(lines[1])).toBe(onScreen, 'the region on screen, not the saved one');
+  const read = async () => {
+    const download = page.waitForEvent('download');
+    await page.locator('#exportLabel').click();
+    const file = await download;
+    const chunks = [];
+    for await (const chunk of await file.createReadStream()) chunks.push(chunk);
+    const lines = Buffer.concat(chunks).toString('utf8').trimEnd().split('\n');
+    return { name: file.suggestedFilename(), count: Number(lines[1]) };
+  };
+  const first = await read();
+  expect(first.name).toBe('lh.V1.label', 'the selected ROI names the file, not the name field');
+  expect(first.count).toBe(82, 'the saved ROI, not the region on screen');
+
+  // Saving the second region selects it, and now that is what is written.
+  await page.locator('#saveRoi').click();
+  await expect(page.locator('#exportNameHint')).toContainText('Exporting the saved ROI V2');
+  const second = await read();
+  expect(second.name).toBe('lh.V2.label');
+  expect(second.count).toBe(onScreen);
 });
 
 test('a reopened ROI survives every way of walking away from the edit', async ({ page }) => {

@@ -29,7 +29,7 @@ export function packAnnotation([r, g, b]) {
 
 /**
  * Make every colour distinct and none of them black, changing as little as
- * possible. The palette has eight colours and a parcellation may have more, so
+ * possible. The palette has sixteen colours and a parcellation may have more, so
  * two labels routinely share one; a collision is resolved by stepping the
  * blue channel, then green, then red, one unit at a time — invisible on
  * screen, but a different annotation value.

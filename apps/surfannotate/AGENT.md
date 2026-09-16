@@ -25,6 +25,7 @@ src/
     freesurferCurv.js       Curv format read honestly — NiiVue's reader inverts
     freesurferAnnot.js      .annot writer (and reader, for round trips)
     parcellationExport.js   The ROI list as one label per vertex
+    session.js              Definitions + landmarks as JSON; rides in .label.gii metadata
 ```
 
 The split matters: `surface/` and `io/` run under plain `node --test` with no browser,
@@ -146,13 +147,35 @@ which is why the algorithm suite is fast and deterministic. Only `main.js` and
 - **`.annot` labels are colours, not indices.** FreeSurfer stores each vertex's
   annotation as its label's colour packed `r + (g << 8) + (b << 16)` and recovers
   the label by matching that against the colour table. So two labels with one
-  colour are one label, and pure black is "unlabelled". The palette has eight
+  colour are one label, and pure black is "unlabelled". The palette has sixteen
   colours and a parcellation can have more: `uniqueAnnotColors` nudges
   collisions one unit apart and the writer refuses to write a table that would
   merge. Names are null-terminated and every integer is big-endian; verified
   against nibabel's `read_annot` (labels, names and colours all round-trip).
   The whole-parcellation exports write `savedRois()` only — an ROI that is
   reopened for editing is off the list until saved, and the status says so.
+- **Single-ROI exports write the selected saved ROI, and saving selects it.**
+  The region being drawn is not exportable: it can still change, and a file
+  of it is a snapshot nothing refers back to. Saving used to leave the ROI
+  *unselected* because the export file name came from the ROI-name field,
+  which goes on naming the next ROI, so an auto-selected ROI got exported
+  under the next name. `exportStem` now takes the name from the selected ROI
+  itself (`requireSavedRoi`), which is what makes selecting on save safe.
+  While any ROI is reopened, every export is disabled (`refuseWhileEditing`).
+- **A session is definitions, never masks, and it rides inside `.label.gii`.**
+  `io/session.js` writes what `state.rois` holds — clicks, closure, region
+  index, boundary flag, anchor, colour, order — and the landmarks; masks, chains
+  and errors are derived and are deliberately not written. The same JSON is
+  embedded as a GIfTI MetaData entry (`SurfAnnotateSession`) in both
+  `.label.gii` exports, because that is the file people hand to other tools
+  and it costs nothing; `.label` (one header line) and `.annot` (a colour-table
+  filename string) have nowhere safe to put it. `sessionFromGiftiMetadata` is
+  a pattern match, not an XML parse, because DOMParser is absent under
+  `node --test` and the entry has exactly one shape. Loading refuses a vertex
+  count or triangle hash that differs from the active surface — every number
+  in the file is a vertex index. Imported ROIs keep the file's `colorIndex` so
+  a parcellation looks as it did; `nextColorIndex` already skips colours in
+  use, so ROIs drawn afterwards differ.
 - **Exports are named `<hemisphere>.<roi>`, never after the source surface.** See
   `io/naming.js`. An ROI drawn on `lh.sphere.reg` is valid on any surface sharing that
   vertex indexing, so `lh.sphere.reg.surf.V1.label` would misrepresent it.
