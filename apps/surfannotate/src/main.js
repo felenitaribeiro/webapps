@@ -1148,7 +1148,7 @@ function activateSurface(id, { announce = false } = {}) {
   // Before the active topology changes, or savedRois() would put it back on the
   // wrong surface's list.
   restoreEdited();
-  syncSharedOverlays(activeSurface(), entry);
+  syncSharedOverlays(activeSurface());
 
   state.activeId = id;
   for (const surface of state.surfaces) {
@@ -1213,7 +1213,10 @@ function activateSurface(id, { announce = false } = {}) {
 function removeSurface(id) {
   const position = state.surfaces.findIndex((entry) => entry.id === id);
   if (position < 0) return;
-  if (state.activeId === id) restoreEdited();
+  if (state.activeId === id) {
+    restoreEdited();
+    syncSharedOverlays(activeSurface());
+  }
   const [entry] = state.surfaces.splice(position, 1);
   state.nv.removeMesh(entry.mesh);
 
@@ -1493,12 +1496,8 @@ function shareOverlay(entry, overlay) {
   let copies = 0;
   for (const other of matchingSurfaces(entry)) {
     if (other.overlays.some((candidate) => candidate.groupId === overlay.groupId)) continue;
-    // The same file loaded separately onto the other surface joins the group
-    // rather than being duplicated next to itself.
-    const twin = other.overlays.find((candidate) =>
-      candidate.groupId === undefined && candidate.name === overlay.name);
-    if (twin) twin.groupId = overlay.groupId;
-    else cloneOverlayTo(other, overlay);
+    // Separate loads retain their identity even when filenames match.
+    cloneOverlayTo(other, overlay);
     copies++;
   }
   return copies;
@@ -1513,12 +1512,6 @@ function shareOverlay(entry, overlay) {
 function shareAllOverlays() {
   const entry = activeSurface();
   if (!entry) return;
-  if (!matchingSurfaces(entry).length) {
-    setStatus(`No other loaded surface has the same vertices as ${entry.name}, so there is ` +
-      'nothing to apply the overlays to yet. A surface of the same subject loaded later ' +
-      'will receive them.');
-    return;
-  }
   let copies = 0;
   let shared = 0;
   for (const surface of state.surfaces) {
@@ -1528,8 +1521,15 @@ function shareAllOverlays() {
       if (before === undefined) shared++;
     }
   }
+  syncSharedOverlays(entry);
   renderLayerLists();
   repaint();
+  if (!matchingSurfaces(entry).length) {
+    setStatus(`No other loaded surface has the same vertices as ${entry.name}, so there is ` +
+      'nothing to apply the overlays to yet. A surface of the same subject loaded later ' +
+      'will receive them.');
+    return;
+  }
   setStatus(shared
     ? `${shared} overlay${shared === 1 ? '' : 's'} now shared across every surface with ` +
       `the same vertices (${copies} cop${copies === 1 ? 'y' : 'ies'} made).`
@@ -1567,14 +1567,15 @@ function cloneOverlayTo(target, source) {
 }
 
 /**
- * On switching surface, bring each shared overlay's settings across from the
- * surface just left: colour map, window, opacity, visibility, mask exemption,
- * and which overlay the controls edit. Settings are changed on one surface at
- * a time; syncing at the switch is what makes them feel like one overlay
- * without every handler having to know about siblings.
+ * Publish the active surface's shared settings before leaving or removing it.
+ * Updating every sibling also covers navigation through unrelated topologies.
  */
-function syncSharedOverlays(from, to) {
-  if (!from || !to || from === to || from.topologyKey !== to.topologyKey) return;
+function syncSharedOverlays(from) {
+  if (!from) return;
+  for (const to of matchingSurfaces(from)) syncOverlaySettings(from, to);
+}
+
+function syncOverlaySettings(from, to) {
   let changed = false;
   for (const overlay of to.overlays) {
     if (overlay.groupId === undefined) continue;
