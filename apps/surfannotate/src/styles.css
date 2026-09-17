@@ -373,7 +373,7 @@ summary:focus-visible {
   cursor: not-allowed;
 }
 
-#controls button {
+#controls button:not(.nd-btn-icon) {
   min-height: 36px;
   margin: 0;
   padding: 7px 11px;
@@ -404,10 +404,6 @@ summary:focus-visible {
   color: var(--nd-brand-menu);
   background: var(--nd-brand-hover);
   border-color: var(--nd-brand-primary);
-}
-:root[data-neurodesk-app][data-neurodesk-theme="dark"] #controls button.primary:hover:not(:disabled) {
-  color: var(--nd-brand-menu);
-  background: var(--nd-brand-hover);
 }
 
 #controls button:disabled {
@@ -524,50 +520,6 @@ summary:focus-visible {
   border-color: var(--nd-brand-primary);
 }
 
-/* The ROI the export buttons write. Deliberately louder than .selected: that
-   tint marks which surface or overlay the controls edit, but this one changes
-   what a download contains, and a pale green did not read as "this one".
-   Anchored on #controls because the shared app-theme.css restyles every
-   `.layer-list li` in dark mode from a :root[data-neurodesk-theme] selector
-   that outranks any class chain — without the id, this rule loses in the
-   dark theme and only the box-shadow survives. */
-#controls .layer-list li.export-target {
-  color: #fff; /* literal: the theme maps --nd-brand-white to a dark surface in dark mode */
-  background: var(--nd-brand-selected);
-  border-color: var(--nd-brand-selected);
-  box-shadow: 0 0 0 2px var(--nd-brand-hover);
-}
-/* The theme gives buttons a pale face in light mode, which would leave white
-   glyphs on white; inside the green row every button sits flat on it. */
-#controls .layer-list li.export-target .layer-meta,
-#controls .layer-list li.export-target button.layer-name,
-#controls .layer-list li.export-target button.layer-icon,
-#controls .layer-list li.export-target button.layer-remove {
-  color: rgb(255 255 255 / 88%);
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-}
-#controls .layer-list li.export-target button.layer-name { color: #fff; }
-#controls .layer-list li.export-target button.layer-icon:disabled {
-  color: rgb(255 255 255 / 35%);
-  background: transparent;
-}
-#controls .layer-list li.export-target button.layer-icon:hover:not(:disabled),
-#controls .layer-list li.export-target button.layer-edit:hover {
-  color: var(--nd-brand-menu);
-  background: var(--nd-brand-hover);
-}
-
-/* Each ROI's fill colour, so a row can be matched to the surface. */
-.layer-swatch {
-  flex: 0 0 auto;
-  width: 11px;
-  height: 11px;
-  border: 1px solid rgb(0 0 0 / 25%);
-  border-radius: 50%;
-}
-
 .layer-list input { flex: 0 0 auto; margin: 0; accent-color: var(--nd-brand-primary); }
 
 .layer-list .layer-name,
@@ -599,31 +551,6 @@ summary:focus-visible {
   color: var(--nd-ink-muted);
   font: 0.68rem/1 Menlo, Monaco, Consolas, monospace;
   font-variant-numeric: tabular-nums;
-}
-
-/* Anchored on #controls: the general `#controls button` rule (36px minimum,
-   7px 11px padding) outranks a class chain, and under it these were 24×36
-   boxes with a 2px content area — the glyph overflowed to the right of centre
-   and rendered at 12.6px. Grid centring puts the glyph's ink box, not its
-   line box, in the middle. The face (background, border) is deliberately
-   left to the general rule so these read as buttons like the rest of the
-   panel; only the geometry and the glyph are overridden. */
-#controls .layer-list .layer-remove,
-#controls .layer-list .layer-icon,
-#controls .layer-list button.layer-remove,
-#controls .layer-list button.layer-icon {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 28px;
-  min-width: 28px;
-  min-height: 28px;
-  height: 28px;
-  margin: 0;
-  padding: 0;
-  color: var(--nd-ink-muted);
-  font-size: 1rem;
-  line-height: 1;
 }
 
 /* The reorder triangles: a 10×8 polygon, block-level so the grid centres the

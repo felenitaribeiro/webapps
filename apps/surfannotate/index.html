@@ -175,13 +175,16 @@
             <span>Apply overlays to every loaded surface with the same vertices (the same subject)</span>
           </label>
           <ul class="layer-list" id="overlayList" aria-label="Overlays on the shown surface"></ul>
-          <p class="hint">
-            Curvature, thickness, .annot, .label.gii, .shape.gii, CIFTI .dscalar.nii.
-            Ticked, every overlay — loaded before or after — is shared: one colour map,
-            range and visibility across the surfaces it is on, removed from all of them
-            together. Unticked, new overlays stay on the surface they are loaded onto;
-            already shared ones stay shared.
-          </p>
+          <p class="hint">Curvature, thickness, .annot, .label.gii, .shape.gii, CIFTI .dscalar.nii.</p>
+          <details class="workflow-help">
+            <summary>How shared overlays work</summary>
+            <p>
+              Sharing applies to overlays loaded before and after the checkbox is ticked.
+              Matching surfaces share the colour map, range and visibility; removing an
+              overlay removes it from all of them. Unticking keeps existing groups shared
+              and leaves new overlays on the surface they are loaded onto.
+            </p>
+          </details>
 
           <!-- One mask for the whole surface, not per overlay: it answers "where
                is there data at all", which is a property of the subject. -->
