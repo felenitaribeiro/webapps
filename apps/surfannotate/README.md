@@ -152,7 +152,7 @@ document, so there is still one bundle and one path in the composite site.
 | Format | Use |
 | --- | --- |
 | FreeSurfer `.label` | The universal FreeSurfer exchange format; opens in freeview. Also FreeSurfer's own control-point format, so it doubles as a landmark file. Can be dropped back in as an overlay. |
-| GIfTI `.label.gii` | Opens in Connectome Workbench, FSL, nibabel, NiiVue. Carries the ROI name and colour. |
+| GIfTI `.label.gii` | Opens in Connectome Workbench, FSL, nibabel, NiiVue. Carries the ROI name and colour. Editable metadata also includes preceding ROIs that constrain this ROI, so reimport restores its exact region. |
 | Points JSON | Landmarks plus a mesh fingerprint, so a point set cannot be loaded onto the wrong surface. |
 | FreeSurfer `.annot` | **Every saved ROI in one file**, in list order, with names and colours. Opens in freeview; `mri_annotation2label` splits it back into `.label`s. |
 | GIfTI `.label.gii` (all ROIs) | The same parcellation as one integer per vertex with a label table. Opens in Workbench, nibabel, NiiVue. |

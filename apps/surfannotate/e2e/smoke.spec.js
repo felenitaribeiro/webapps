@@ -1670,6 +1670,27 @@ test('removing an ROI gives its vertices back to the surface', async ({ page }) 
   expect(await page.evaluate(() => window.__surfannotate.excluded)).toBe(null);
 });
 
+test('a selected ROI GIfTI preserves the preceding regions that constrain its border', async ({ page }) => {
+  await loadFlat(page);
+  await saveStrip(page, 4, 'V1');
+  await saveStrip(page, 9, 'V2');
+  expect(await areaSizes(page)).toEqual([{ name: 'V1', n: 164 }, { name: 'V2', n: 205 }]);
+  const before = await page.evaluate(() => window.__surfannotateUi.savedRois()
+    .map(roi => ({ name: roi.name, mask: Array.from(roi.mask) })));
+  const download = page.waitForEvent('download');
+  await page.locator('#exportGifti').click();
+  const file = await download;
+  const chunks = [];
+  for await (const chunk of await file.createReadStream()) chunks.push(chunk);
+  while (await roiRows(page).count()) await roiRows(page).first().locator('.layer-remove').click();
+  await page.setInputFiles('#roiImport', {
+    name: file.suggestedFilename(), mimeType: 'application/xml', buffer: Buffer.concat(chunks)
+  });
+  await expect(roiRows(page)).toHaveCount(2);
+  expect(await page.evaluate(() => window.__surfannotateUi.savedRois()
+    .map(roi => ({ name: roi.name, mask: Array.from(roi.mask) })))).toEqual(before);
+});
+
 test('a session file restores editable ROIs, and so does the .label.gii it rides in', async ({ page }) => {
   await loadFlat(page);
   await expect(page.locator('#roiImport')).toBeEnabled();

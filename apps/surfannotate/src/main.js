@@ -1830,7 +1830,7 @@ function commitOverlay() {
 function iconButton(glyph, title, onClick) {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'layer-icon';
+  button.className = 'layer-icon nd-btn-icon nd-btn-icon-sm';
   button.title = title;
   button.setAttribute('aria-label', title);
   if (typeof glyph === 'string') button.textContent = glyph;
@@ -1860,7 +1860,7 @@ function arrowIcon(direction) {
 function makeRemoveButton(title, onClick) {
   const button = document.createElement('button');
   button.type = 'button';
-  button.className = 'layer-remove';
+  button.className = 'layer-remove nd-btn-icon nd-btn-icon-sm';
   button.title = title;
   button.setAttribute('aria-label', title);
   // U+2715, from the same Dingbats block as the pencil, so the two match in
@@ -1915,7 +1915,7 @@ function renderLayerLists() {
     // `selected` is the shared "active row" look; `export-target` is stronger,
     // because this selection changes what a button *writes* and a pale tint
     // was not enough to tell which ROI the next export would be.
-    if (isTarget) item.classList.add('selected', 'export-target');
+    if (isTarget) item.classList.add('selected', 'export-target', 'nd-result-selected');
     if (roi.error) item.classList.add('unresolved');
 
     const show = document.createElement('input');
@@ -1931,7 +1931,7 @@ function renderLayerLists() {
 
     // The ROI's own fill colour, so the row and the surface can be matched.
     const swatch = document.createElement('span');
-    swatch.className = 'layer-swatch';
+    swatch.className = 'layer-swatch nd-result-swatch';
     swatch.style.background = cssColor(SAVED_ROI_COLORS[roi.colorIndex % SAVED_ROI_COLORS.length]);
     swatch.setAttribute('aria-hidden', 'true');
 
@@ -2086,10 +2086,6 @@ function cssColor([r, g, b]) {
   return `rgb(${Math.round(r * 255)} ${Math.round(g * 255)} ${Math.round(b * 255)})`;
 }
 
-/**
- * Live preview of the file name the export buttons will produce, and of what
- * they will write — the selected ROI or the region being drawn.
- */
 function showExportName() {
   const hint = el('exportNameHint');
   if (!state.mesh) {
@@ -2627,7 +2623,10 @@ async function exportGiftiLabel() {
   const xml = await writeGiftiLabel(maskToLabelArray(chosen.mask, LABEL_REGION), [
     { key: LABEL_NONE, name: '???', rgba: [0, 0, 0, 0] },
     { key: LABEL_REGION, name: chosen.name, rgba: [0.9, 0.2, 0.2, 1] }
-  ], { arrayName: chosen.name, metadata: sessionMetadata([chosen]) });
+  ], {
+    arrayName: chosen.name,
+    metadata: sessionMetadata(savedRois().slice(0, savedRois().indexOf(chosen) + 1))
+  });
 
   download(filename, xml, 'application/xml');
   setStatus(`Exported ${chosen.name} as ${filename}.`);
