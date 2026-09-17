@@ -65,6 +65,13 @@ test('a session fits only the surface it was drawn on', () => {
   assert.match(sessionFits(stray, { vertexCount: 1681, topologyKey: KEY }).reason, /vertices this surface lacks/);
 });
 
+test('invalid palette indices are rejected before a session can change the ROI list', () => {
+  for (const colorIndex of [-1, 0.5, 'blue', null]) {
+    const text = JSON.stringify({ format: SESSION_FORMAT, rois: [{ ...ROIS[0], colorIndex }] });
+    assert.throws(() => readSession(text), /V1.*invalid colour index/);
+  }
+});
+
 test('the session survives a trip through .label.gii metadata, including "]]>" in a name', async () => {
   const rois = [{ ...ROIS[0], name: 'odd]]>name' }];
   const text = writeSession({ rois, mesh: MESH, topologyKey: KEY });

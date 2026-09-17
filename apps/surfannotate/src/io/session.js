@@ -106,6 +106,10 @@ export function readSession(text) {
     if (roi.closure !== 'loop' && roi.closure !== 'edge') {
       throw new Error(`${label} has an unknown closure "${roi.closure}"`);
     }
+    if (roi.colorIndex !== undefined
+      && (!Number.isSafeInteger(roi.colorIndex) || roi.colorIndex < 0)) {
+      throw new Error(`${label} has an invalid colour index`);
+    }
     if (roi.border !== undefined
       && (!Array.isArray(roi.border) || !roi.border.every((v) => Number.isInteger(v) && v >= 0))) {
       throw new Error(`${label} has an invalid border`);
